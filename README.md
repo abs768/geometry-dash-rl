@@ -45,6 +45,7 @@ comparison surfaces this; the prior single-algorithm work cannot.
 
 ```
 gdrl/sim/      headless physics simulator (cube mode, v0.1)
+gdrl/levels/   Geometry Dash level-string importer (parser + object-ID tables)
 gdrl/envs/     Gymnasium environment (sim backend + real-game bridge stub)
 gdrl/models/   policy / Q networks
 gdrl/agents/   dqn.py, ppo.py, ga.py trainers
@@ -84,6 +85,29 @@ approximations of cube-mode physics (~2.1-block jump apex, 10.38 blocks/s at 1×
 speed) and are the calibration surface for sim-to-real transfer: the Geode mod
 will log real trajectories and the constants get fitted to match.
 
+## Importing official levels
+
+`import_level.py` turns a Geometry Dash level string (or a `.gmd` export) into a
+sim JSON level, and prints a **coverage report** so you can see how much of the
+level the cube-only sim actually understands before training:
+
+```bash
+python import_level.py --gmd path/to/level.gmd --out levels/my_level.json
+python import_level.py --string "<base64…>" --official --name stereo_madness
+```
+
+The parser handles the real wire format (URL-safe base64 + zlib, `;`/`,` inner
+string, center coordinates ÷30 − 0.5) and classifies objects via the tables in
+[`gdrl/levels/objects.py`](gdrl/levels/objects.py) — extend those to widen
+coverage; unrecognised IDs are reported, never guessed.
+
+**Honest caveat:** the sim is currently **cube-only**, and most official levels
+(Stereo Madness, the Meltdown levels, …) contain ship/ball/robot sections. The
+importer parses them and reports the gamemode breakdown, but the agent can only
+play the cube stretches until those gamemodes are implemented. The round-trip
+through the genuine GD format is verified in `tests/test_levels.py`; a trained
+agent completes a level re-imported through that format.
+
 ## Roadmap
 
 - [x] Headless sim: cube mode, blocks/spikes, deterministic step
@@ -91,8 +115,8 @@ will log real trajectories and the constants get fitted to match.
 - [x] DQN / PPO / GA trainers + YAML recipes
 - [x] Seeds × algorithms comparison sweep + figure (`results/`)
 - [x] Bridge: binary protocol, `GDRealEnv`, sim-backed mock, end-to-end tests (`gd-mod/`, `eval_real.py`)
+- [x] GD level-string importer: base64/zlib decode, object-ID tables, coverage report (`gdrl/levels/`, `import_level.py`)
 - [ ] Geode mod: build against GD + verify live game-state reads (C++ written, `VERIFY` markers in `gd-mod/src/main.cpp`)
 - [ ] Physics calibration against real-game trajectories
-- [ ] Ship / ball / wave gamemodes, gamemode-conditioned policy
-- [ ] Official level import (GD level string parser)
+- [ ] Ship / ball / wave gamemodes, gamemode-conditioned policy (needed for most official levels)
 - [ ] Pixel-observation ablation, W&B tracking, seeds × algorithms comparison report
