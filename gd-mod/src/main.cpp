@@ -25,10 +25,6 @@ using namespace gdbridge;
 
 namespace {
 
-// Forward declarations (definitions live lower in this file).
-bool isSpikeId(int id);
-bool isSolidId(int id);
-
 // One bridge for the whole process; hooks talk to it.
 class Bridge {
 public:
@@ -103,33 +99,35 @@ StatePayload readState(PlayLayer* pl) {
     return s;
 }
 
-// Dump the level's obstacle list so Python can build the same look-ahead grid.
+// Dump the level's COLLIDABLE obstacles so Python gets a clean collision map.
+// We classify by the game's own GameObjectType, not by guessing IDs, so
+// decorations / triggers / pads / rings / coins are dropped and only things the
+// cube actually collides with are sent.
 std::vector<GeometryRecord> readGeometry(PlayLayer* pl) {
     std::vector<GeometryRecord> out;
-    CCArray* objects = pl->m_objects;  // VERIFY: field name m_objects
+    CCArray* objects = pl->m_objects;  // GJBaseGameLayer field
     if (!objects) return out;
     for (unsigned i = 0; i < objects->count(); ++i) {
         auto* obj = static_cast<GameObject*>(objects->objectAtIndex(i));
         if (!obj) continue;
-        // Classify by object type id. GD spike IDs are a known set (8, 39, 103,
-        // ...); everything solid-and-collidable is treated as a block. This
-        // mapping is the main thing to expand for full level coverage. VERIFY.
-        int id = obj->m_objectID;  // VERIFY: m_objectID
         uint8_t kind;
-        if (isSpikeId(id)) kind = 1;
-        else if (isSolidId(id)) kind = 0;
-        else continue;  // decoration / non-colliding: skip
+        switch (obj->m_objectType) {
+            case GameObjectType::Solid:
+            case GameObjectType::Slope:      // ramp: approximated as a solid block
+            case GameObjectType::Breakable:
+                kind = 0;  // collidable block
+                break;
+            case GameObjectType::Hazard:
+                kind = 1;  // instant death
+                break;
+            default:
+                continue;  // decoration, portals, pads, rings, coins, triggers: skip
+        }
         const CCPoint p = obj->getPosition();
         out.push_back({kind, p.x / UNITS_PER_BLOCK, p.y / UNITS_PER_BLOCK});
     }
     return out;
 }
-
-// Placeholder classifiers — replace with the real GD object-ID tables.
-bool isSpikeId(int id) {
-    switch (id) { case 8: case 39: case 103: case 392: return true; default: return false; }
-}
-bool isSolidId(int /*id*/) { return true; }  // TODO: restrict to collidable blocks
 
 // Send the current level geometry as one GEOMETRY message.
 void sendGeometry(SocketServer* srv, PlayLayer* pl) {

@@ -63,6 +63,10 @@ python eval_real.py --run runs/ga_spikes_easy_s0 --algo ga --level spikes_easy -
    gamemode, and death/completion events from `PlayLayer`/`PlayerObject`.
 2. **Action injection** — apply hold/release before the frame's input is
    processed (equivalent to `PlayerObject::pushButton` / `releaseButton`).
+   - Geometry is classified by the game's own `GameObject::m_objectType`
+     (`GameObjectType::Solid`/`Slope`/`Breakable` → block, `Hazard` → spike);
+     decorations, portals, pads, rings, coins and triggers are dropped, so the
+     dump is a clean collision map rather than "every object is solid".
 3. **Frame lock** — hook the update loop so the game *waits for the agent's
    action each frame*. This is what makes evaluation deterministic and lets a
    speedhack multiplier run faster than real time.
