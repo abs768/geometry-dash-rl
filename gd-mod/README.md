@@ -1,11 +1,33 @@
 # gd-mod — Geode mod for real-game evaluation
 
-Status: **C++ written, not yet built against the game.** The mod source
-(`src/`) is complete and the SDK-independent parts (`protocol.hpp`,
-`socket_server.cpp`) compile cleanly with `clang++ -std=c++20`. What remains is
-building against an installed Geode SDK + Geometry Dash and verifying the
-game-state field reads (all marked `VERIFY` in `src/main.cpp`) against the
-actual bindings.
+Status: **builds against real Geometry Dash 2.2081 (Geode 5.8.1).** The mod
+compiles and packages cleanly — every game-state binding that was written blind
+and marked `VERIFY` in `src/main.cpp` matched the real 2.2081 headers on the
+first build. What remains is the runtime handshake: install the Geode loader
+into the game, launch it, and connect the Python bridge.
+
+### Working build recipe (macOS, Apple Silicon)
+
+```bash
+brew install cmake geode-sdk/geode/geode-cli
+geode profile add --name main "/path/to/Steam/steamapps/common/Geometry Dash/Geometry Dash.app" mac
+geode sdk install ~/geode-sdk         # installs SDK v5.x (supports GD 2.208x)
+geode sdk install-binaries
+export GEODE_SDK=~/geode-sdk
+cd gd-mod && geode build              # -> build/gdrl.bridge.geode, installed to the game
+```
+
+Gotcha: `mod.json`'s `gd` version must be the **granular** build string the SDK
+targets (`2.2081`), not the marketing version (`2.208`) — the build errors out
+otherwise and prints the exact string to use.
+
+Then install the Geode loader with the official installer
+(`geode-installer-v<ver>-mac.pkg` from the Geode releases; auto-detects the
+Steam install), launch GD once, enter a level, and run:
+
+```bash
+python eval_real.py --run runs/<checkpoint> --algo <algo> --level <name>   # no --mock: real game
+```
 
 The **entire Python side of the bridge is implemented and tested end-to-end**
 without the game: `gdrl/envs/mock_mod.py` is a protocol-faithful mock backed by
