@@ -10,14 +10,16 @@ from __future__ import annotations
 
 import numpy as np
 
-from gdrl.sim.level import BLOCK, Level
+from gdrl.sim.level import BLOCK, GAMEMODES, Level
 
 GRID_COLS = 20
 GRID_ROWS = 10
 OBS_Y_SCALE = 10.0
 OBS_VY_SCALE = 30.0
+N_MODES = len(GAMEMODES)  # 7
 
-OBS_LEN = 4 + GRID_COLS * GRID_ROWS * 2
+# head(4) + grid + gamemode one-hot(7) + gravity(1)
+OBS_LEN = 4 + GRID_COLS * GRID_ROWS * 2 + N_MODES + 1
 
 
 def lookahead_grid(x: float, level: Level) -> np.ndarray:
@@ -32,12 +34,17 @@ def lookahead_grid(x: float, level: Level) -> np.ndarray:
     return grid
 
 
-def build_observation(x: float, y: float, vy: float, grounded: bool, level: Level) -> np.ndarray:
+def build_observation(x: float, y: float, vy: float, grounded: bool, level: Level,
+                      mode: int = 0, gravity: int = 1) -> np.ndarray:
     head = np.array(
         [y / OBS_Y_SCALE, vy / OBS_VY_SCALE, float(grounded), x - np.floor(x)],
         dtype=np.float32,
     )
-    return np.concatenate([head, lookahead_grid(x, level).ravel()])
+    mode_onehot = np.zeros(N_MODES, dtype=np.float32)
+    if 0 <= mode < N_MODES:
+        mode_onehot[mode] = 1.0
+    tail = np.concatenate([mode_onehot, np.array([float(gravity)], dtype=np.float32)])
+    return np.concatenate([head, lookahead_grid(x, level).ravel(), tail])
 
 
 def ascii_strip(x: float, y: float, level: Level) -> str:

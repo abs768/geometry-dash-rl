@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from gdrl.levels import gd_format, objects
-from gdrl.sim.level import Level, LevelObject
+from gdrl.sim.level import Level, LevelObject, Portal
 
 
 @dataclass
@@ -64,6 +64,7 @@ class ImportReport:
 
 def _objects_to_level(name: str, props: list[dict[int, str]]) -> tuple[Level, ImportReport]:
     level_objects: list[LevelObject] = []
+    level_portals: list[Portal] = []
     gamemode_portals: list[tuple[float, str]] = []
     unknown: Counter = Counter()
     n_blocks = n_spikes = n_portals = 0
@@ -82,17 +83,23 @@ def _objects_to_level(name: str, props: list[dict[int, str]]) -> tuple[Level, Im
             level_objects.append(LevelObject("spike", x, max(y, 0.0)))
             n_spikes += 1
         elif kind == "portal_gamemode":
-            gamemode_portals.append((x, objects.PORTAL_GAMEMODE[oid]))
+            mode = objects.PORTAL_GAMEMODE[oid]
+            level_portals.append(Portal("gamemode", x, mode))
+            gamemode_portals.append((x, mode))
             n_portals += 1
         elif kind == "portal_speed":
-            n_portals += 1  # speed affects physics; recorded but not yet simulated
+            level_portals.append(Portal("speed", x, objects.PORTAL_SPEED[oid]))
+            n_portals += 1
+        elif kind == "portal_gravity":
+            level_portals.append(Portal("gravity", x, objects.PORTAL_GRAVITY[oid]))
+            n_portals += 1
         else:
             unknown[oid] += 1
 
     # Level length: a little past the last object, in blocks.
     length = max_x + 15.0
     gamemode_portals.sort()
-    level = Level(name, length, level_objects)
+    level = Level(name, length, level_objects, portals=level_portals)
     report = ImportReport(
         name=name, length_blocks=length, n_blocks=n_blocks, n_spikes=n_spikes,
         n_portals=n_portals, gamemode_portals=gamemode_portals,

@@ -27,3 +27,23 @@ PLAYER_SIZE = 1.0
 # if the player's previous bottom edge was at least this close to above the
 # block's top, the contact counts as a landing.
 LANDING_TOLERANCE = 0.20
+
+# --- other gamemodes --------------------------------------------------------
+# These constants are approximate: they give controllable, plausible motion in
+# block units, not frame-perfect GD fidelity. Calibrate against real-game
+# trajectories (Geode mod) before trusting sim-to-real for these modes.
+
+# Ship: gentle gravity, stronger thrust; velocity capped so flight is smooth.
+SHIP_GRAVITY = 34.0
+SHIP_THRUST = 68.0
+SHIP_MAX_VY = 12.0
+
+# UFO: each tap is a fixed upward impulse against a cube-like gravity.
+UFO_GRAVITY = 60.0
+UFO_IMPULSE = 11.0
+
+# Ball: rolls on a surface, each tap flips gravity. Uses a cube-like gravity.
+BALL_GRAVITY = 85.0
+
+# Wave moves at 45 degrees, so its |vertical speed| equals the horizontal speed
+# (SPEED_1X * speed_multiplier); no separate constant needed.

@@ -38,12 +38,17 @@ PORTAL_SPEED: dict[int, float] = {
     200: 0.5, 201: 1.0, 202: 2.0, 203: 3.0, 1334: 4.0,
 }
 
+# --- gravity portals (id -> gravity direction) ------------------------------
+# 11 = blue (flip to upside-down), 10 = yellow (restore normal). Approximate.
+PORTAL_GRAVITY: dict[int, int] = {10: 1, 11: -1}
+
 BLOCK = "block"
 SPIKE = "spike"
 
 
 def classify(object_id: int) -> str:
-    """Return one of: 'block', 'spike', 'portal_gamemode', 'portal_speed', 'unknown'."""
+    """Return one of: 'block', 'spike', 'portal_gamemode', 'portal_speed',
+    'portal_gravity', 'unknown'."""
     if object_id in HAZARD_IDS:
         return SPIKE
     if object_id in SOLID_IDS:
@@ -52,6 +57,8 @@ def classify(object_id: int) -> str:
         return "portal_gamemode"
     if object_id in PORTAL_SPEED:
         return "portal_speed"
+    if object_id in PORTAL_GRAVITY:
+        return "portal_gravity"
     return "unknown"
 
 

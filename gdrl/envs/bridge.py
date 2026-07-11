@@ -117,7 +117,9 @@ class GDRealEnv(gym.Env):
         self._last_x = 0.0
 
     def _obs(self, s: proto.State) -> np.ndarray:
-        return build_observation(s.x, s.y, s.vy, s.grounded, self.level)
+        gravity = -1 if (s.flags & proto.FLAG_UPSIDE) else 1
+        return build_observation(s.x, s.y, s.vy, s.grounded, self.level,
+                                 mode=s.gamemode, gravity=gravity)
 
     @staticmethod
     def _info(s: proto.State) -> dict:

@@ -1,0 +1,13 @@
+{
+  "name": "portal_demo",
+  "length": 60.0,
+  "ceiling": 10.0,
+  "start_mode": "cube",
+  "objects": [],
+  "portals": [
+    {"kind": "gamemode", "x": 15.0, "value": "ship"},
+    {"kind": "speed", "x": 20.0, "value": 2.0},
+    {"kind": "gravity", "x": 30.0, "value": -1},
+    {"kind": "gamemode", "x": 45.0, "value": "cube"}
+  ]
+}

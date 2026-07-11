@@ -85,6 +85,30 @@ approximations of cube-mode physics (~2.1-block jump apex, 10.38 blocks/s at 1×
 speed) and are the calibration surface for sim-to-real transfer: the Geode mod
 will log real trajectories and the constants get fitted to match.
 
+### Gamemodes
+
+The sim is gamemode-aware. Levels declare a `start_mode` and can switch mode,
+gravity, or speed at **portals** (see the JSON format in `gdrl/sim/level.py`).
+The observation carries a gamemode one-hot and the gravity direction so a
+single policy can condition on the current mode.
+
+| Mode | Input behaviour | Fidelity |
+|------|-----------------|----------|
+| cube  | hold = jump when grounded | calibrated baseline (unchanged from v0.1) |
+| ship  | hold = thrust up, release = fall | approximate, controllable |
+| wave  | hold = up 45°, release = down 45° | approximate |
+| ball  | tap = flip gravity | approximate |
+| ufo   | tap = upward impulse | approximate |
+| robot | ~ cube | **placeholder** (robot's variable-height jump not modelled) |
+| spider| ~ ball | **placeholder** (spider's teleport not modelled) |
+
+The non-cube constants are *approximate* — chosen for plausible, controllable
+motion, not frame-perfect GD behaviour — and are flagged for calibration
+against real trajectories via the Geode mod. Flight is nonetheless a real
+control task: on `ship_gauntlet`, constant "never-thrust" and "always-thrust"
+policies both die (on the floor and ceiling obstacles), while a GA learns to
+weave through and completes it.
+
 ## Importing official levels
 
 `import_level.py` turns a Geometry Dash level string (or a `.gmd` export) into a
@@ -117,6 +141,7 @@ agent completes a level re-imported through that format.
 - [x] Bridge: binary protocol, `GDRealEnv`, sim-backed mock, end-to-end tests (`gd-mod/`, `eval_real.py`)
 - [x] GD level-string importer: base64/zlib decode, object-ID tables, coverage report (`gdrl/levels/`, `import_level.py`)
 - [ ] Geode mod: build against GD + verify live game-state reads (C++ written, `VERIFY` markers in `gd-mod/src/main.cpp`)
-- [ ] Physics calibration against real-game trajectories
-- [ ] Ship / ball / wave gamemodes, gamemode-conditioned policy (needed for most official levels)
+- [x] Ship / ball / ufo / wave gamemodes + gravity/speed portals + gamemode-conditioned observation
+- [ ] Physics calibration against real-game trajectories (esp. the approximate non-cube modes)
+- [ ] Robot & spider physics (currently placeholders); dual and mini modes
 - [ ] Pixel-observation ablation, W&B tracking, seeds × algorithms comparison report

@@ -60,7 +60,8 @@ class GDEnv(gym.Env):
 
     def _obs(self) -> np.ndarray:
         s = self.state
-        return build_observation(s.x, s.y, s.vy, s.grounded, self.level)
+        return build_observation(s.x, s.y, s.vy, s.grounded, self.level,
+                                 mode=s.mode, gravity=s.gravity)
 
     def _info(self) -> dict:
         return {

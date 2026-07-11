@@ -93,10 +93,12 @@ class MockModServer:
             flags |= proto.FLAG_DEAD
         if state.won:
             flags |= proto.FLAG_COMPLETE
+        if state.gravity < 0:
+            flags |= proto.FLAG_UPSIDE
         return proto.State(
             x=state.x, y=state.y, vy=state.vy, grounded=state.grounded,
-            gamemode=0, flags=flags, length=self.level.length,
-            frame=frame, percent=self.sim.progress(state), speed_mult=1.0,
+            gamemode=state.mode, flags=flags, length=self.level.length,
+            frame=frame, percent=self.sim.progress(state), speed_mult=state.speed,
         )
 
     def _serve(self) -> None:

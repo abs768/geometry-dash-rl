@@ -53,7 +53,10 @@ def main() -> None:
     data = {
         "name": name,
         "length": level.length,
+        "ceiling": level.ceiling,
+        "start_mode": level.start_mode,
         "objects": [{"type": o.type, "x": o.x, "y": o.y} for o in level.objects],
+        "portals": [{"kind": p.kind, "x": p.x, "value": p.value} for p in level.portals],
     }
     out.write_text(json.dumps(data, indent=2))
     print(f"\nwrote {out}  ({len(level.objects)} objects)")

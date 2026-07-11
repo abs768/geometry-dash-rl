@@ -2,13 +2,13 @@ import numpy as np
 
 from gdrl.envs import GDEnv
 from gdrl.envs.gd_env import WIN_REWARD
-from gdrl.envs.observation import GRID_COLS, GRID_ROWS
+from gdrl.envs.observation import GRID_COLS, GRID_ROWS, OBS_LEN
 
 
 def test_observation_shape_and_spaces():
     env = GDEnv("spikes_easy")
     obs, info = env.reset(seed=0)
-    assert obs.shape == (4 + GRID_COLS * GRID_ROWS * 2,)
+    assert obs.shape == (OBS_LEN,)
     assert obs.dtype == np.float32
     assert env.action_space.n == 2
     assert info["progress"] == 0.0
@@ -17,7 +17,7 @@ def test_observation_shape_and_spaces():
 def test_grid_sees_upcoming_spike():
     env = GDEnv("single_spike")  # spike at x=15
     obs, _ = env.reset(seed=0)
-    grid = obs[4:].reshape(GRID_COLS, GRID_ROWS, 2)
+    grid = obs[4:4 + GRID_COLS * GRID_ROWS * 2].reshape(GRID_COLS, GRID_ROWS, 2)
     assert grid[15, 0, 1] == 1.0  # hazard channel, column 15, ground row
     assert grid[:, :, 0].sum() == 0.0  # no solids in this level
 

@@ -67,3 +67,7 @@ finished in well under an hour on one CPU core thanks to the headless sim.
   GA use their defaults. Each method is allowed its own budget/hyperparameters,
   as is standard, but PPO is the only one that needed tuning to get anywhere on
   the hard level — itself part of the finding.
+- These runs predate the gamemode-aware observation (which appends a gamemode
+  one-hot + gravity flag). They were produced on the cube-only observation and
+  remain valid as reported; re-running `sweep.py` on the current code reproduces
+  the same comparison with the larger observation vector.
