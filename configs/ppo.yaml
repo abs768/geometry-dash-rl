@@ -12,7 +12,10 @@ num_envs: 16
 rollout_len: 128
 epochs: 4
 minibatches: 4
-ent_coef: 0.01
+# Higher entropy than the PPO default: the death penalty at the first
+# risky jump creates a local optimum (free progress up to the first wall),
+# and stronger exploration is what lets on-policy PPO escape it.
+ent_coef: 0.05
 vf_coef: 0.5
-total_steps: 1000000
-checkpoint_every: 100000
+total_steps: 3000000
+checkpoint_every: 250000

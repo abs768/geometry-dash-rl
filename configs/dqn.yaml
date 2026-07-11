@@ -8,11 +8,11 @@ lr: 1.0e-4
 gamma: 0.99
 buffer_size: 100000
 batch_size: 64
-total_steps: 200000
+total_steps: 400000
 warmup_steps: 2000
 eps_start: 1.0
 eps_end: 0.05
-eps_decay_steps: 100000
+eps_decay_steps: 150000
 target_update_steps: 1000
 double: true
 checkpoint_every: 25000

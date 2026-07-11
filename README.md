@@ -23,6 +23,24 @@ look-ahead occupancy grid of upcoming geometry) instead of raw pixels, which is
 dramatically more sample-efficient. A pixel-based variant is planned as an
 ablation.
 
+## Results so far
+
+Three algorithms × three seeds × two levels, identical observation/action/reward,
+greedy evaluation. Full write-up in [`results/RESULTS.md`](results/RESULTS.md).
+
+| Algorithm | spikes_easy | blocks_and_spikes | Seeds solved |
+|-----------|:-----------:|:-----------------:|:------------:|
+| DQN (double)      | 100% | 100% | 6/6 |
+| Genetic Algorithm | 100% | 100% | 6/6 |
+| PPO               | 100% | 48%  | 4/6 |
+
+![comparison](results/comparison.png)
+
+Headline finding: DQN and the GA solve every seed, but **PPO gets trapped in a
+local optimum** at the first death-risky jump on the harder level on 2 of 3
+seeds — and more compute (6M steps) does not rescue it. A controlled multi-algorithm
+comparison surfaces this; the prior single-algorithm work cannot.
+
 ## Layout
 
 ```
@@ -34,7 +52,11 @@ configs/       YAML recipes, one per experiment
 levels/        level files (JSON block format)
 tests/         physics, env-API and determinism tests
 gd-mod/        Geode mod skeleton + bridge protocol spec
+results/       comparison figure + RESULTS.md write-up
 train.py       entry point: python train.py --config configs/ppo.yaml
+sweep.py       run {dqn,ppo,ga} × seeds × levels
+evaluate.py    greedy-evaluate all runs -> runs/summary.csv
+plot.py        build the seeds × algorithms comparison figure
 play.py        roll out a checkpoint, ASCII render
 ```
 
@@ -67,6 +89,7 @@ will log real trajectories and the constants get fitted to match.
 - [x] Headless sim: cube mode, blocks/spikes, deterministic step
 - [x] Gymnasium env + structured observations
 - [x] DQN / PPO / GA trainers + YAML recipes
+- [x] Seeds × algorithms comparison sweep + figure (`results/`)
 - [ ] Geode mod: state export, action injection, frame stepping (spec in `gd-mod/`)
 - [ ] Physics calibration against real-game trajectories
 - [ ] Ship / ball / wave gamemodes, gamemode-conditioned policy

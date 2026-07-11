@@ -28,17 +28,18 @@ def _unflatten(model: torch.nn.Module, flat: np.ndarray) -> None:
         i += n
 
 
-def _rollout(env: GDEnv, model: MLP) -> tuple[float, float, bool]:
-    """Deterministic greedy rollout. Returns (fitness, progress, won)."""
+def _rollout(env: GDEnv, model: MLP) -> tuple[float, float, bool, int]:
+    """Deterministic greedy rollout. Returns (fitness, progress, won, steps)."""
     obs, _ = env.reset()
-    total = 0.0
+    total, steps = 0.0, 0
     with torch.no_grad():
         while True:
             action = int(model(torch.as_tensor(obs).unsqueeze(0)).argmax())
             obs, reward, terminated, truncated, info = env.step(action)
             total += reward
+            steps += 1
             if terminated or truncated:
-                return total, info["progress"], info["won"]
+                return total, info["progress"], info["won"], steps
 
 
 def train_ga(cfg: dict, run_dir: str) -> None:
@@ -62,8 +63,10 @@ def train_ga(cfg: dict, run_dir: str) -> None:
     population = rng.normal(0.0, init_std, size=(pop_size, genome_len)).astype(np.float32)
 
     n_elite = max(1, int(pop_size * elite_frac))
-    logger = RunLogger(run_dir, ["generation", "best_fitness", "mean_fitness", "best_progress", "won"])
+    logger = RunLogger(run_dir, ["generation", "step", "best_fitness", "mean_fitness",
+                                 "best_progress", "won"])
     best_ever = (-np.inf, None)
+    env_steps = 0  # cumulative frames, so curves share an x-axis with DQN/PPO
 
     for gen in range(1, generations + 1):
         fitness = np.zeros(pop_size)
@@ -71,14 +74,15 @@ def train_ga(cfg: dict, run_dir: str) -> None:
         won_any = False
         for i in range(pop_size):
             _unflatten(model, population[i])
-            fitness[i], progress[i], won = _rollout(env, model)
+            fitness[i], progress[i], won, steps = _rollout(env, model)
+            env_steps += steps
             won_any = won_any or won
 
         order = np.argsort(fitness)[::-1]
         if fitness[order[0]] > best_ever[0]:
             best_ever = (fitness[order[0]], population[order[0]].copy())
 
-        logger.log(generation=gen, best_fitness=float(fitness[order[0]]),
+        logger.log(generation=gen, step=env_steps, best_fitness=float(fitness[order[0]]),
                    mean_fitness=float(fitness.mean()),
                    best_progress=float(progress[order[0]]), won=int(won_any))
 

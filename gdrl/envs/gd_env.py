@@ -1,10 +1,13 @@
 """Gymnasium environment over the headless simulator.
 
-Observation (float32, shape (3 + GRID_COLS*GRID_ROWS*2,)):
+Observation (float32, shape (4 + GRID_COLS*GRID_ROWS*2,)):
     [0] player y / OBS_Y_SCALE
     [1] player vy / OBS_VY_SCALE
     [2] grounded flag
-    [3:] look-ahead occupancy grid, GRID_COLS columns starting at the
+    [3] fractional x within the current block (x - floor(x)) — without this
+        the block-aligned grid aliases ~6 consecutive frames to the same
+        observation and the exact jump frame is unobservable
+    [4:] look-ahead occupancy grid, GRID_COLS columns starting at the
          player's current column, GRID_ROWS rows from the ground up,
          2 channels (solid, hazard), row-major, flattened.
 
@@ -52,7 +55,7 @@ class GDEnv(gym.Env):
         from gdrl.sim import physics
         self.max_steps = max_steps or int(3 * level.length / (physics.SPEED_1X * physics.DT))
 
-        obs_len = 3 + GRID_COLS * GRID_ROWS * 2
+        obs_len = 4 + GRID_COLS * GRID_ROWS * 2
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(obs_len,), dtype=np.float32)
         self.action_space = spaces.Discrete(2)
         self.state = None
@@ -72,7 +75,7 @@ class GDEnv(gym.Env):
     def _obs(self) -> np.ndarray:
         s = self.state
         head = np.array(
-            [s.y / OBS_Y_SCALE, s.vy / OBS_VY_SCALE, float(s.grounded)],
+            [s.y / OBS_Y_SCALE, s.vy / OBS_VY_SCALE, float(s.grounded), s.x - np.floor(s.x)],
             dtype=np.float32,
         )
         return np.concatenate([head, self._grid().ravel()])
