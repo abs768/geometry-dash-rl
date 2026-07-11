@@ -17,9 +17,16 @@ export GEODE_SDK=~/geode-sdk
 cd gd-mod && geode build              # -> build/gdrl.bridge.geode, installed to the game
 ```
 
-Gotcha: `mod.json`'s `gd` version must be the **granular** build string the SDK
-targets (`2.2081`), not the marketing version (`2.208`) — the build errors out
-otherwise and prints the exact string to use.
+Two gotchas hit on the first real build:
+
+- **Version string**: `mod.json`'s `gd` version must be the **granular** build
+  string the SDK targets (`2.2081`), not the marketing version (`2.208`) — the
+  build errors out otherwise and prints the exact string to use.
+- **Architecture**: GD 2.208 runs its **arm64** slice natively on Apple
+  Silicon, but Geode's Mac default is x86_64, so the mod fails to load with
+  `incompatible architecture (have 'x86_64', need 'arm64')`. The CMakeLists now
+  defaults to the host arch; the loader and SDK libs are universal, so it links
+  either way.
 
 Then install the Geode loader with the official installer
 (`geode-installer-v<ver>-mac.pkg` from the Geode releases; auto-detects the
