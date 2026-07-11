@@ -1,8 +1,17 @@
-// Minimal blocking TCP server for the agent bridge. One client at a time.
+// Minimal TCP server for the agent bridge. One client at a time.
 // Framing: every message is u32 little-endian length prefix + payload.
+//
+// Accepting runs on a dedicated background thread so connections and the
+// handshake work regardless of game state (menu or in a level). The game's
+// update loop only does the per-frame state/action exchange. This decouples
+// "is a client connected" from "is the game running a level", which is what
+// makes connecting reliable.
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 namespace gdbridge {
@@ -12,14 +21,13 @@ public:
     explicit SocketServer(uint16_t port);
     ~SocketServer();
 
-    // Open the listening socket. Returns false on failure (logged by caller).
+    // Open the listening socket and start the background accept thread.
     bool listen();
 
-    // Non-blocking: accept a pending client if one is waiting. Safe to call
-    // every frame; a no-op once connected.
-    void pollAccept();
+    // Bytes sent to every client immediately on accept (the HELLO handshake).
+    void setOnConnectMessage(std::vector<uint8_t> msg);
 
-    bool connected() const { return m_client >= 0; }
+    bool connected();
 
     // Send a length-prefixed message. Drops the client on error.
     bool send(const void* data, uint32_t size);
@@ -33,9 +41,15 @@ public:
 private:
     uint16_t m_port;
     int m_listen = -1;
-    int m_client = -1;
+    std::atomic<int> m_client{-1};
+    std::atomic<bool> m_running{false};
+    std::mutex m_ioMutex;              // serializes send/recv/replace on m_client
+    std::vector<uint8_t> m_helloMsg;
+    std::thread m_acceptThread;
 
-    bool recvExact(void* buf, uint32_t n, int timeout_ms);
+    void acceptLoop();
+    bool sendRaw(int fd, const void* data, uint32_t size);
+    bool recvExact(int fd, void* buf, uint32_t n, int timeout_ms);
 };
 
 }  // namespace gdbridge

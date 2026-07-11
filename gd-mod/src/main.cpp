@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <Geode/Geode.hpp>
+#include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PlayerObject.hpp>
 
@@ -40,6 +41,12 @@ public:
         if (m_started) return;
         m_started = true;
         m_server = std::make_unique<SocketServer>(DEFAULT_PORT);
+        // The server sends this HELLO to every client the moment it connects,
+        // from its background accept thread — so the handshake works whether or
+        // not the game is currently running a level.
+        m_server->setOnConnectMessage({static_cast<uint8_t>(MsgType::Hello),
+                                       static_cast<uint8_t>(PROTOCOL_VERSION & 0xff),
+                                       static_cast<uint8_t>((PROTOCOL_VERSION >> 8) & 0xff)});
         if (m_server->listen()) {
             log::info("gd-bridge listening on 127.0.0.1:{}", DEFAULT_PORT);
         } else {
@@ -47,15 +54,12 @@ public:
         }
     }
 
-    // Send the Hello handshake to a freshly connected client.
-    void sendHello() {
-        uint8_t buf[3] = {static_cast<uint8_t>(MsgType::Hello),
-                          static_cast<uint8_t>(PROTOCOL_VERSION & 0xff),
-                          static_cast<uint8_t>((PROTOCOL_VERSION >> 8) & 0xff)};
-        m_server->send(buf, sizeof(buf));
-    }
-
     SocketServer* server() { return m_server.get(); }
+
+    // Per-attempt state, shared between the PlayLayer hooks (init/reset) and the
+    // GJBaseGameLayer::update hook that does the exchange.
+    uint32_t frame = 0;
+    bool holding = false;
 
 private:
     bool m_started = false;
@@ -92,7 +96,7 @@ StatePayload readState(PlayLayer* pl) {
 
     // Level length in blocks. m_levelLength is in units. VERIFY.
     s.length = pl->m_levelLength / UNITS_PER_BLOCK;
-    s.frame = Bridge::get().server() ? 0 : 0;  // frame counter maintained by hook below
+    s.frame = 0;  // set by the update hook
     s.percent = static_cast<float>(pl->getCurrentPercent()) / 100.0f;  // VERIFY: getCurrentPercent
     s.speed_mult = 1.0f;  // TODO: derive from active speed portal
     s.reserved = 0;
@@ -127,79 +131,82 @@ bool isSpikeId(int id) {
 }
 bool isSolidId(int /*id*/) { return true; }  // TODO: restrict to collidable blocks
 
+// Send the current level geometry as one GEOMETRY message.
+void sendGeometry(SocketServer* srv, PlayLayer* pl) {
+    auto geom = readGeometry(pl);
+    std::vector<uint8_t> buf;
+    buf.push_back(static_cast<uint8_t>(MsgType::Geometry));
+    uint32_t count = static_cast<uint32_t>(geom.size());
+    buf.insert(buf.end(), reinterpret_cast<uint8_t*>(&count),
+               reinterpret_cast<uint8_t*>(&count) + sizeof(count));
+    buf.insert(buf.end(), reinterpret_cast<uint8_t*>(geom.data()),
+               reinterpret_cast<uint8_t*>(geom.data()) + geom.size() * sizeof(GeometryRecord));
+    srv->send(buf.data(), static_cast<uint32_t>(buf.size()));
+}
+
 }  // namespace
 
 // ---- hooks ----------------------------------------------------------------
 
+// PlayLayer owns the level lifecycle: open the socket, reset the frame counter
+// on level start and on each attempt.
 class $modify(BridgePlayLayer, PlayLayer) {
-    struct Fields {
-        uint32_t frame = 0;
-        bool holding = false;
-    };
-
-    // Called when a level starts. Open the socket and reset per-attempt state.
     bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
         if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
         Bridge::get().ensureListening();
-        m_fields->frame = 0;
+        Bridge::get().frame = 0;
         return true;
     }
 
     void resetLevel() {
         PlayLayer::resetLevel();
-        m_fields->frame = 0;  // frame counter resets on each attempt (per protocol)
+        Bridge::get().frame = 0;  // frame counter resets on each attempt (per protocol)
     }
+};
 
-    // Send the current level geometry as one GEOMETRY message.
-    void sendGeometry(SocketServer* srv) {
-        auto geom = readGeometry(this);
-        std::vector<uint8_t> buf;
-        buf.push_back(static_cast<uint8_t>(MsgType::Geometry));
-        uint32_t count = static_cast<uint32_t>(geom.size());
-        buf.insert(buf.end(), reinterpret_cast<uint8_t*>(&count),
-                   reinterpret_cast<uint8_t*>(&count) + sizeof(count));
-        buf.insert(buf.end(), reinterpret_cast<uint8_t*>(geom.data()),
-                   reinterpret_cast<uint8_t*>(geom.data()) + geom.size() * sizeof(GeometryRecord));
-        srv->send(buf.data(), static_cast<uint32_t>(buf.size()));
-    }
-
-    // Per-frame driver, request/response with the agent (see PROTOCOL.md):
-    // block for one ACTION, apply it, run the frame, reply with [GEOMETRY]+STATE.
-    // Blocking here is the frame-lock: the game waits for the agent each frame.
+// The per-frame exchange lives on GJBaseGameLayer::update — that's the function
+// actually driving the game loop in GD 2.2 (PlayLayer does NOT get its own
+// update hook there). We only act when `this` is really a PlayLayer (gameplay,
+// not the editor) and an agent is connected. Blocking for the action is the
+// frame-lock: the game waits for the agent each frame.
+class $modify(BridgeBaseLayer, GJBaseGameLayer) {
     void update(float dt) {
         Bridge& bridge = Bridge::get();
         SocketServer* srv = bridge.server();
-        if (!srv) { PlayLayer::update(dt); return; }
+        auto* pl = geode::cast::typeinfo_cast<PlayLayer*>(this);
+        if (!srv || !srv->connected() || !pl) { GJBaseGameLayer::update(dt); return; }
 
-        srv->pollAccept();
-        if (!srv->connected()) { PlayLayer::update(dt); return; }
-        if (m_fields->frame == 0) bridge.sendHello();
-
-        // Block for the agent's action (short timeout so a dead agent can't
-        // hang the game forever; on timeout, repeat the previous input).
+        // Block for the agent's action (short timeout so a dead agent can't hang
+        // the game forever; on timeout, repeat the previous input).
         std::vector<uint8_t> msg;
         bool resetting = false, wants_geom = false;
         if (srv->recv(msg, /*timeout_ms=*/1000) && msg.size() >= 2 &&
             msg[0] == static_cast<uint8_t>(MsgType::Action)) {
             uint8_t act = msg[1];
-            m_fields->holding = act & ACT_HOLD;
+            bridge.holding = act & ACT_HOLD;
             resetting = act & ACT_REQUEST_RESET;
             wants_geom = act & ACT_REQUEST_GEOM;
         }
 
         if (resetting) {
-            this->resetLevel();  // repositions to spawn; reply reflects spawn state
+            pl->resetLevel();  // repositions to spawn; reply reflects spawn state
         } else {
             // Apply input before the frame's physics, then step.
-            if (m_fields->holding) this->m_player1->pushButton(PlayerButton::Jump);   // VERIFY
-            else this->m_player1->releaseButton(PlayerButton::Jump);                  // VERIFY
-            PlayLayer::update(dt);
+            if (bridge.holding) this->m_player1->pushButton(PlayerButton::Jump);   // VERIFY
+            else this->m_player1->releaseButton(PlayerButton::Jump);               // VERIFY
+            GJBaseGameLayer::update(dt);
         }
 
-        if (wants_geom) sendGeometry(srv);
+        if (wants_geom) sendGeometry(srv, pl);
 
-        StatePayload s = readState(this);
-        s.frame = m_fields->frame++;
+        StatePayload s = readState(pl);
+        s.frame = bridge.frame++;
         srv->send(&s, sizeof(s));
     }
 };
+
+// Start listening as soon as the mod loads, so the socket is up at the menu —
+// the agent can connect any time and just waits for the player to enter a level.
+$on_mod(Loaded) {
+    Bridge::get().ensureListening();
+}
