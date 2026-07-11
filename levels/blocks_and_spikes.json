@@ -1,0 +1,24 @@
+{
+  "name": "blocks_and_spikes",
+  "length": 100.0,
+  "objects": [
+    {"type": "spike", "x": 12.0, "y": 0.0},
+    {"type": "block", "x": 20.0, "y": 0.0},
+    {"type": "block", "x": 21.0, "y": 0.0},
+    {"type": "spike", "x": 21.0, "y": 1.0},
+    {"type": "block", "x": 22.0, "y": 0.0},
+    {"type": "spike", "x": 30.0, "y": 0.0},
+    {"type": "spike", "x": 31.0, "y": 0.0},
+    {"type": "block", "x": 38.0, "y": 0.0},
+    {"type": "block", "x": 42.0, "y": 0.0},
+    {"type": "spike", "x": 40.0, "y": 0.0},
+    {"type": "spike", "x": 50.0, "y": 0.0},
+    {"type": "block", "x": 56.0, "y": 0.0},
+    {"type": "block", "x": 57.0, "y": 0.0},
+    {"type": "spike", "x": 65.0, "y": 0.0},
+    {"type": "spike", "x": 66.0, "y": 0.0},
+    {"type": "spike", "x": 75.0, "y": 0.0},
+    {"type": "spike", "x": 84.0, "y": 0.0},
+    {"type": "spike", "x": 85.0, "y": 0.0}
+  ]
+}

@@ -1,0 +1,18 @@
+# PPO — the expected strongest learner; trains on 16 parallel sim envs.
+algo: ppo
+level: spikes_easy
+seed: 0
+
+hidden: [256, 256]
+lr: 3.0e-4
+gamma: 0.99
+gae_lambda: 0.95
+clip_eps: 0.2
+num_envs: 16
+rollout_len: 128
+epochs: 4
+minibatches: 4
+ent_coef: 0.01
+vf_coef: 0.5
+total_steps: 1000000
+checkpoint_every: 100000

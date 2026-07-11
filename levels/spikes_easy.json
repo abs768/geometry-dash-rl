@@ -1,0 +1,16 @@
+{
+  "name": "spikes_easy",
+  "length": 80.0,
+  "objects": [
+    {"type": "spike", "x": 12.0, "y": 0.0},
+    {"type": "spike", "x": 21.0, "y": 0.0},
+    {"type": "spike", "x": 22.0, "y": 0.0},
+    {"type": "spike", "x": 33.0, "y": 0.0},
+    {"type": "spike", "x": 40.0, "y": 0.0},
+    {"type": "spike", "x": 41.0, "y": 0.0},
+    {"type": "spike", "x": 52.0, "y": 0.0},
+    {"type": "spike", "x": 58.0, "y": 0.0},
+    {"type": "spike", "x": 59.0, "y": 0.0},
+    {"type": "spike", "x": 68.0, "y": 0.0}
+  ]
+}

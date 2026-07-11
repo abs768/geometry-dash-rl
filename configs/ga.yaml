@@ -1,0 +1,12 @@
+# Genetic algorithm — deterministic levels make single-rollout fitness exact.
+algo: ga
+level: spikes_easy
+seed: 0
+
+hidden: [64, 64]
+pop_size: 64
+generations: 200
+elite_frac: 0.125
+mutation_std: 0.05
+init_std: 0.5
+stop_on_win: true

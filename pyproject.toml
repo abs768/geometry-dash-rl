@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gdrl"
+version = "0.1.0"
+description = "Reinforcement learning agents (DQN, PPO, GA) for Geometry Dash, trained in a headless simulator and evaluated in the official game via a Geode mod"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "BHAVANI SHANKAR AJITH" }]
+dependencies = [
+    "numpy>=1.24",
+    "gymnasium>=0.29",
+    "torch>=2.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[tool.setuptools.packages.find]
+include = ["gdrl*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

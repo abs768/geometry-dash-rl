@@ -1,0 +1,7 @@
+{
+  "name": "single_spike",
+  "length": 30.0,
+  "objects": [
+    {"type": "spike", "x": 15.0, "y": 0.0}
+  ]
+}
