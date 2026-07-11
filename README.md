@@ -112,6 +112,23 @@ where constant policies fail:
 - `robot_leap` — a wall needs a long-hold high jump; short/no jump dies, GA clears it.
 - `spider_switch` — floor and ceiling spikes force teleport timing; constant policies die, GA solves it.
 
+## Playing the real game
+
+The bridge drives the official game live. Verified on **Stereo Madness (GD
+2.208)**: the mod streams the cube's real position/velocity/gamemode and dumps
+the level geometry (~2.4k objects), and `play_real_reactive.py` runs a
+geometry-aware reactive controller that reads live state and jumps over hazards.
+
+Honest status: this is a **heuristic baseline that plays the opening live**, not
+a full clear. It clears the first spike and reaches ~3.8% before the double
+spike at x≈33 — the jump timing needs calibrating to the real cube's arc, and
+the frame-locked game runs at ~60 fps (real-time), so on-hardware RL search of
+the full 890-block level (with its ship section) is impractical in one sitting.
+Two things gate a full clear and are the honest next steps: (1) the mod's
+geometry dump flags every non-spike object as solid, so it isn't a clean
+collision map (needs the real GD solid-object-ID table); (2) sim physics need
+calibration against logged real trajectories (real spawn is y≈3.5, not 0).
+
 ## Importing official levels
 
 `import_level.py` turns a Geometry Dash level string (or a `.gmd` export) into a
