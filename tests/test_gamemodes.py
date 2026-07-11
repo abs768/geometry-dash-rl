@@ -88,6 +88,54 @@ def test_empty_corridors_complete():
         assert s.won and not s.dead, f"{mode} corridor not completed (dead={s.dead})"
 
 
+def _robot_apex(hold_frames, ceiling=15.0):
+    sim = make("robot", length=100.0, ceiling=ceiling)
+    s = sim.reset()
+    apex = 0.0
+    for f in range(120):
+        s = sim.step(s, f < hold_frames)
+        apex = max(apex, s.y)
+        if s.grounded and f > hold_frames:
+            break
+    return apex
+
+
+def test_robot_hold_controls_jump_height():
+    # Longer hold -> higher jump (variable-height jump is the robot's mechanic).
+    short, medium, long = _robot_apex(2), _robot_apex(6), _robot_apex(12)
+    assert short < medium < long
+    assert short > 0.0  # a tap still leaves the ground
+
+
+def test_robot_boost_window_caps_height():
+    # Holding past the boost window gains nothing more.
+    assert _robot_apex(12) == _robot_apex(30)
+
+
+def test_spider_teleports_between_surfaces():
+    sim = make("spider", ceiling=8.0)
+    s = sim.reset()
+    assert s.y == 0.0 and s.gravity == 1
+    s = sim.step(s, True)   # tap -> snap to ceiling, gravity up
+    assert s.gravity == -1 and s.y > 6.0 and s.grounded
+    s = sim.step(s, False)
+    s = sim.step(s, True)   # tap -> snap back to floor
+    assert s.gravity == 1 and s.y == 0.0
+
+
+def test_spider_teleport_into_spike_dies():
+    # A hazard on the ceiling: teleporting up lands in it.
+    ceiling = 8.0
+    spike = LevelObject("spike", 3.0, ceiling - 1.0)  # sits just under the ceiling
+    sim = make("spider", length=40.0, ceiling=ceiling, objects=[spike])
+    s = sim.reset()
+    # advance to just before the spike's x, then tap up into it
+    while s.x < 2.6:
+        s = sim.step(s, False)
+    s = sim.step(s, True)
+    assert s.dead
+
+
 def test_gamemode_portal_switches_mode():
     sim = make("cube", length=60.0,
                portals=[Portal("gamemode", 15.0, "ship")])

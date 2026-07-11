@@ -34,6 +34,7 @@ class SimState:
     gravity: int = 1  # +1 normal (pulls down), -1 flipped (pulls up)
     speed: float = 1.0
     held: bool = False  # hold applied on the previous step (for edge detection)
+    boost: int = 0      # robot jump-boost frames remaining
 
 
 def _overlaps(a, b) -> bool:
@@ -55,22 +56,37 @@ class GDSim:
 
     # -- vertical dynamics per gamemode ------------------------------------
 
-    def _vertical(self, s: SimState, hold: bool) -> tuple[float, bool, int]:
-        """Return (vy, grounded, gravity) after applying input for this frame.
+    def _vertical(self, s: SimState, hold: bool) -> tuple[float, bool, int, int]:
+        """Return (vy, grounded, gravity, boost) after applying input this frame.
 
         grounded here is the pre-integration value (a jump clears it so gravity
-        applies the same frame, matching the original cube behaviour).
+        applies the same frame, matching the original cube behaviour). Spider's
+        teleport is handled separately in step(); here spider only falls if it
+        has run off an edge.
         """
         g = s.gravity
-        vy, grounded = s.vy, s.grounded
+        vy, grounded, boost = s.vy, s.grounded, s.boost
         rising_edge = hold and not s.held
 
         mode = s.mode
-        if mode in (CUBE, ROBOT):
+        if mode == CUBE:
             if hold and grounded:
                 vy = physics.JUMP_VELOCITY * g
                 grounded = False
             if not grounded:
+                vy -= physics.GRAVITY * physics.DT * g
+        elif mode == ROBOT:
+            # Variable-height jump: pop on press, extra thrust while held.
+            if rising_edge and grounded:
+                vy = physics.ROBOT_JUMP_VELOCITY * g
+                grounded = False
+                boost = physics.ROBOT_BOOST_FRAMES
+            if not grounded:
+                if hold and boost > 0:
+                    vy += physics.ROBOT_BOOST_ACCEL * physics.DT * g
+                    boost -= 1
+                else:
+                    boost = 0
                 vy -= physics.GRAVITY * physics.DT * g
         elif mode == SHIP:
             accel = -g * physics.SHIP_GRAVITY + (g * physics.SHIP_THRUST if hold else 0.0)
@@ -83,12 +99,15 @@ class GDSim:
                 grounded = False
             if not grounded:
                 vy -= physics.UFO_GRAVITY * physics.DT * g
-        elif mode in (BALL, SPIDER):
+        elif mode == BALL:
             if rising_edge:
                 g = -g  # tap flips gravity
                 grounded = False
             if not grounded:
                 vy -= physics.BALL_GRAVITY * physics.DT * g
+        elif mode == SPIDER:
+            if not grounded:  # ran off an edge: fall until it hits a surface
+                vy -= physics.SPIDER_GRAVITY * physics.DT * g
         elif mode == WAVE:
             vy = (1.0 if hold else -1.0) * g * physics.SPEED_1X * s.speed
             grounded = False
@@ -96,15 +115,62 @@ class GDSim:
         # Common terminal-velocity clamp (symmetric).
         term = abs(physics.TERMINAL_VELOCITY)
         vy = max(-term, min(term, vy))
-        return vy, grounded, g
+        return vy, grounded, g, boost
 
     # -- step --------------------------------------------------------------
+
+    def _snap_surface(self, x: float, cur_y: float, g: int, size: float) -> float | None:
+        """The y (player bottom) of the nearest surface in gravity direction g,
+        for the spider teleport. Returns None if none found (shouldn't happen:
+        floor/ceiling always bound the space)."""
+        ceil_top = self.level.ceiling - size
+        blocks = [o for o in self.level.objects_near(x - 1.0, x + size + 1.0)
+                  if o.type == BLOCK and o.aabb()[0] < x + size and o.aabb()[2] > x]
+        if g > 0:  # teleport down: land on the highest surface at/below us
+            candidates = [0.0] + [o.aabb()[3] for o in blocks if o.aabb()[3] <= cur_y + 1e-6]
+            return max(candidates)
+        else:      # teleport up: land under the lowest surface at/above us
+            tops = [ceil_top] + [o.aabb()[1] - size for o in blocks
+                                 if o.aabb()[1] - size >= cur_y - 1e-6]
+            return min(tops)
+
+    def _spider_teleport(self, state: SimState, hold: bool) -> SimState:
+        """Spider tap: flip gravity and snap instantly to the opposite surface."""
+        size = physics.PLAYER_SIZE
+        g = -state.gravity
+        x = state.x + physics.SPEED_1X * state.speed * physics.DT
+        y = self._snap_surface(x, state.y, g, size)
+        if y is None:
+            y = state.y
+
+        # Dying if we teleport into a spike at the destination.
+        player = (x, y, x + size, y + size)
+        dead = any(o.type == SPIKE and _overlaps(player, o.aabb())
+                   for o in self.level.objects_near(x - 1.0, x + size + 1.0))
+
+        mode, speed = state.mode, state.speed
+        for portal in self.level.portals_crossed(state.x, x):
+            if portal.kind == "gamemode":
+                mode = MODE_ID.get(portal.value, mode) if isinstance(portal.value, str) else int(portal.value)
+            elif portal.kind == "gravity":
+                g = int(portal.value)
+            elif portal.kind == "speed":
+                speed = float(portal.value)
+
+        won = not dead and x >= self.level.length
+        return SimState(x=x, y=y, vy=0.0, grounded=True, dead=dead, won=won,
+                        frame=state.frame + 1, mode=mode, gravity=g, speed=speed,
+                        held=hold, boost=0)
 
     def step(self, state: SimState, hold: bool) -> SimState:
         if state.dead or state.won:
             return state
 
-        vy, grounded, g = self._vertical(state, hold)
+        # Spider teleports on the tap frame instead of integrating physics.
+        if state.mode == SPIDER and hold and not state.held:
+            return self._spider_teleport(state, hold)
+
+        vy, grounded, g, boost = self._vertical(state, hold)
         size = physics.PLAYER_SIZE
         ceil_top = self.level.ceiling - size
 
@@ -187,6 +253,7 @@ class GDSim:
         return SimState(
             x=x, y=y, vy=vy, grounded=grounded, dead=dead, won=won,
             frame=state.frame + 1, mode=mode, gravity=g, speed=speed, held=hold,
+            boost=boost,
         )
 
     def progress(self, state: SimState) -> float:

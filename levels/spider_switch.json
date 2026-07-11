@@ -1,0 +1,12 @@
+{
+  "name": "spider_switch",
+  "length": 40.0,
+  "ceiling": 8.0,
+  "start_mode": "spider",
+  "objects": [
+    {"type": "spike", "x": 12.0, "y": 0.0},
+    {"type": "spike", "x": 20.0, "y": 7.0},
+    {"type": "spike", "x": 28.0, "y": 0.0}
+  ],
+  "portals": []
+}

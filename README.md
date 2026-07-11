@@ -99,15 +99,18 @@ single policy can condition on the current mode.
 | wave  | hold = up 45°, release = down 45° | approximate |
 | ball  | tap = flip gravity | approximate |
 | ufo   | tap = upward impulse | approximate |
-| robot | ~ cube | **placeholder** (robot's variable-height jump not modelled) |
-| spider| ~ ball | **placeholder** (spider's teleport not modelled) |
+| robot | hold = variable-height jump (longer hold → higher) | approximate |
+| spider| tap = instant teleport to opposite surface + gravity flip | approximate |
 
-The non-cube constants are *approximate* — chosen for plausible, controllable
-motion, not frame-perfect GD behaviour — and are flagged for calibration
-against real trajectories via the Geode mod. Flight is nonetheless a real
-control task: on `ship_gauntlet`, constant "never-thrust" and "always-thrust"
-policies both die (on the floor and ceiling obstacles), while a GA learns to
-weave through and completes it.
+All seven gamemodes are implemented. The non-cube constants are *approximate* —
+chosen for plausible, controllable motion, not frame-perfect GD behaviour — and
+are flagged for calibration against real trajectories via the Geode mod. Each
+mode is a genuine control task, verified by GA agents learning dedicated levels
+where constant policies fail:
+
+- `ship_gauntlet` — never/always-thrust die on floor/ceiling obstacles; GA weaves through.
+- `robot_leap` — a wall needs a long-hold high jump; short/no jump dies, GA clears it.
+- `spider_switch` — floor and ceiling spikes force teleport timing; constant policies die, GA solves it.
 
 ## Importing official levels
 
@@ -141,7 +144,7 @@ agent completes a level re-imported through that format.
 - [x] Bridge: binary protocol, `GDRealEnv`, sim-backed mock, end-to-end tests (`gd-mod/`, `eval_real.py`)
 - [x] GD level-string importer: base64/zlib decode, object-ID tables, coverage report (`gdrl/levels/`, `import_level.py`)
 - [ ] Geode mod: build against GD + verify live game-state reads (C++ written, `VERIFY` markers in `gd-mod/src/main.cpp`)
-- [x] Ship / ball / ufo / wave gamemodes + gravity/speed portals + gamemode-conditioned observation
+- [x] All seven gamemodes (cube/ship/ball/ufo/wave/robot/spider) + gravity/speed portals + gamemode-conditioned observation
 - [ ] Physics calibration against real-game trajectories (esp. the approximate non-cube modes)
-- [ ] Robot & spider physics (currently placeholders); dual and mini modes
+- [ ] Dual and mini modes; per-mode hitbox sizes
 - [ ] Pixel-observation ablation, W&B tracking, seeds × algorithms comparison report
