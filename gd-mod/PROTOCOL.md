@@ -4,8 +4,15 @@ Transport: TCP on 127.0.0.1:51717, mod is the server. All messages are
 length-prefixed: `u32 little-endian payload size` + payload. Payloads are
 fixed-layout little-endian binary — no JSON in the hot loop.
 
-The **mod drives the loop**: it sends STATE, then blocks the game's update
-until it receives ACTION. One STATE/ACTION pair per physics frame.
+**Request/response, one exchange per physics frame.** On connect the mod sends
+`HELLO`. Then each frame the mod blocks in its update hook waiting for one
+`ACTION`; on receipt it applies the input (or resets), steps the frame, and
+replies with a `STATE` — preceded by a `GEOMETRY` message if the action's
+`request geom` bit was set. Blocking for the action is the **frame-lock**: the
+game waits for the agent every frame, so the exchange is deterministic and can
+run faster than real time under a speedhack. The Python client
+(`gdrl/envs/bridge.py`) and the sim-backed mock (`gdrl/envs/mock_mod.py`)
+implement exactly this handshake.
 
 ## Messages
 

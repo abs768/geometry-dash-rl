@@ -1,7 +1,8 @@
 import numpy as np
 
 from gdrl.envs import GDEnv
-from gdrl.envs.gd_env import GRID_COLS, GRID_ROWS, WIN_REWARD
+from gdrl.envs.gd_env import WIN_REWARD
+from gdrl.envs.observation import GRID_COLS, GRID_ROWS
 
 
 def test_observation_shape_and_spaces():

@@ -1,0 +1,23 @@
+{
+    "geode": "4.0.0",
+    "gd": {
+        "win": "2.2074",
+        "mac": "2.2074"
+    },
+    "version": "v0.1.0",
+    "id": "gdrl.bridge",
+    "name": "GD RL Bridge",
+    "developer": "abs768",
+    "description": "Exposes game state and input over a local socket so an RL agent can play/evaluate on the official game.",
+    "tags": ["utility", "developer"],
+    "settings": {
+        "port": {
+            "name": "Bridge port",
+            "description": "TCP port the bridge listens on (127.0.0.1). Must match the Python client.",
+            "type": "int",
+            "default": 51717,
+            "min": 1024,
+            "max": 65535
+        }
+    }
+}

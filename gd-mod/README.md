@@ -1,8 +1,32 @@
 # gd-mod — Geode mod for real-game evaluation
 
-Status: **spec + skeleton, not yet implemented.** The Python side trains in
-`gdrl/sim`; this mod makes the official game a drop-in evaluation backend for
-`gdrl/envs/bridge.py`.
+Status: **C++ written, not yet built against the game.** The mod source
+(`src/`) is complete and the SDK-independent parts (`protocol.hpp`,
+`socket_server.cpp`) compile cleanly with `clang++ -std=c++20`. What remains is
+building against an installed Geode SDK + Geometry Dash and verifying the
+game-state field reads (all marked `VERIFY` in `src/main.cpp`) against the
+actual bindings.
+
+The **entire Python side of the bridge is implemented and tested end-to-end**
+without the game: `gdrl/envs/mock_mod.py` is a protocol-faithful mock backed by
+the headless sim, and `tests/test_bridge.py` proves a sim-trained policy runs
+through the real socket path (`RealGameBridge` → socket → mock) with
+observations and rewards matching the in-process sim env to float32 precision.
+So the only untested surface is the mod's reads of live game memory.
+
+```
+src/protocol.hpp       wire format (mirrors gdrl/envs/protocol.py)
+src/socket_server.*    blocking length-prefixed TCP server (POSIX)
+src/main.cpp           Geode hooks: state export, input inject, reset, geometry
+mod.json               Geode metadata + port setting
+CMakeLists.txt         setup_geode_mod build
+```
+
+Verify the Python bridge now (no game needed):
+
+```bash
+python eval_real.py --run runs/ga_spikes_easy_s0 --algo ga --level spikes_easy --mock
+```
 
 ## What it must do
 

@@ -90,7 +90,8 @@ will log real trajectories and the constants get fitted to match.
 - [x] Gymnasium env + structured observations
 - [x] DQN / PPO / GA trainers + YAML recipes
 - [x] Seeds × algorithms comparison sweep + figure (`results/`)
-- [ ] Geode mod: state export, action injection, frame stepping (spec in `gd-mod/`)
+- [x] Bridge: binary protocol, `GDRealEnv`, sim-backed mock, end-to-end tests (`gd-mod/`, `eval_real.py`)
+- [ ] Geode mod: build against GD + verify live game-state reads (C++ written, `VERIFY` markers in `gd-mod/src/main.cpp`)
 - [ ] Physics calibration against real-game trajectories
 - [ ] Ship / ball / wave gamemodes, gamemode-conditioned policy
 - [ ] Official level import (GD level string parser)
