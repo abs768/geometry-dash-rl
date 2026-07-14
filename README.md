@@ -119,7 +119,16 @@ The bridge drives the official game live. Verified on **Stereo Madness (GD
 the level geometry (~2.4k objects), and `play_real_reactive.py` runs a
 geometry-aware reactive controller that reads live state and jumps over hazards.
 
-Honest status: this is a **heuristic baseline that plays the opening live**, not
+Sim-to-real map (gate #2): `prepare_real_level.py` converts the mod's clean
+geometry dump (object centers, GD ground line ≈ y3.0) into a sim-ready level in
+our coordinate frame. Validated: a no-op agent dies at the first real spike,
+matching the game. A **GA trained in the fast sim solves the opening 126 blocks
+of real Stereo Madness (100%, 6 generations)**; trained on the full level it
+reaches ~17% before hitting raised-platform / slope structures that the
+square-block sim treats as walls (slopes and the ship section are the next
+modeling gaps).
+
+Honest status: live play is a **heuristic baseline that plays the opening**, not
 a full clear. It clears the first spike and reaches ~3.8% before the double
 spike at x≈33 — the jump timing needs calibrating to the real cube's arc, and
 the frame-locked game runs at ~60 fps (real-time), so on-hardware RL search of
