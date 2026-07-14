@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from gdrl.sim import physics
-from gdrl.sim.level import BLOCK, MODE_ID, SPIKE, Level
+from gdrl.sim.level import BLOCK, MODE_ID, SLOPE_DOWN, SLOPE_UP, SPIKE, Level
 
 CUBE, SHIP, BALL, UFO, WAVE, ROBOT, SPIDER = range(7)
 
@@ -162,6 +162,29 @@ class GDSim:
                         frame=state.frame + 1, mode=mode, gravity=g, speed=speed,
                         held=hold, boost=0)
 
+    def _slope_support(self, x: float, size: float) -> float | None:
+        """Highest 45-degree ramp surface under the cube's x-span, or None.
+
+        Slopes are ridden, not collided with. We take the highest ramp point
+        anywhere under the 1-wide cube (so its leading edge leads the climb),
+        which lets it ride smoothly onto a platform at the top of the ramp
+        instead of clipping the platform's side.
+        """
+        front = x + size
+        best = None
+        for obj in self.level.objects_near(x, x + size):
+            lo, hi = max(x, obj.x), min(front, obj.x + 1.0)
+            if lo >= hi:
+                continue
+            if obj.type == SLOPE_UP:
+                h = obj.y + (hi - obj.x)       # rises rightward: max at right edge
+            elif obj.type == SLOPE_DOWN:
+                h = obj.y + (obj.x + 1.0 - lo)  # falls rightward: max at left edge
+            else:
+                continue
+            best = h if best is None else max(best, h)
+        return best
+
     def step(self, state: SimState, hold: bool) -> SimState:
         if state.dead or state.won:
             return state
@@ -194,6 +217,14 @@ class GDSim:
             else:
                 vy = min(vy, 0.0)
 
+        # Ride 45-degree slopes (normal gravity): if the cube is at or below the
+        # ramp surface, snap it onto the ramp so it climbs/descends smoothly.
+        on_slope = False
+        if g > 0:
+            slope_h = self._slope_support(x, size)
+            if slope_h is not None and y <= slope_h + physics.LANDING_TOLERANCE:
+                y, vy, grounded, on_slope = slope_h, 0.0, True, True
+
         player = (x, y, x + size, y + size)
         dead = False
         landed_on_block = False
@@ -223,7 +254,8 @@ class GDSim:
                 player = (x, y, x + size, y + size)
 
         # Walking off a block edge: airborne until a surface is under (over) us.
-        if grounded and not landed_on_block:
+        # (A cube resting on a slope stays grounded — the ramp is its support.)
+        if grounded and not landed_on_block and not on_slope:
             on_floor = (g > 0 and y <= 0.0) or (g < 0 and y >= ceil_top)
             if not on_floor:
                 surface = y if g > 0 else y + size

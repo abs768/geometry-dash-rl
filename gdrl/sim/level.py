@@ -30,6 +30,10 @@ from pathlib import Path
 
 BLOCK = "block"
 SPIKE = "spike"
+# 45-degree floor ramps the cube rides along instead of hitting as a wall.
+SLOPE_UP = "slope_up"      # surface rises left->right: (x,y) -> (x+1, y+1)
+SLOPE_DOWN = "slope_down"  # surface falls left->right: (x, y+1) -> (x+1, y)
+SLOPES = (SLOPE_UP, SLOPE_DOWN)
 
 # Gamemode ids, matching gd-mod/src/protocol.hpp and the bridge protocol.
 GAMEMODES = ["cube", "ship", "ball", "ufo", "wave", "robot", "spider"]

@@ -113,12 +113,19 @@ std::vector<GeometryRecord> readGeometry(PlayLayer* pl) {
         uint8_t kind;
         switch (obj->m_objectType) {
             case GameObjectType::Solid:
-            case GameObjectType::Slope:      // ramp: approximated as a solid block
             case GameObjectType::Breakable:
                 kind = 0;  // collidable block
                 break;
             case GameObjectType::Hazard:
                 kind = 1;  // instant death
+                break;
+            case GameObjectType::Slope:
+                // 45-deg floor ramp. kind 2 = rises rightward, 3 = falls
+                // rightward (via flipX). Ceiling slopes (flipY) are skipped —
+                // the sim only rides floor ramps. HEURISTIC: verify orientation
+                // against the game on re-capture and flip if reversed.
+                if (obj->isFlipY()) continue;
+                kind = obj->isFlipX() ? 3 : 2;
                 break;
             default:
                 continue;  // decoration, portals, pads, rings, coins, triggers: skip

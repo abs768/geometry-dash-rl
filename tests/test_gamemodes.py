@@ -8,7 +8,7 @@ are approximate until calibrated against the real game.
 
 from gdrl.sim import GDSim, Level
 from gdrl.sim.engine import BALL, SHIP, UFO, WAVE
-from gdrl.sim.level import MODE_ID, LevelObject, Portal
+from gdrl.sim.level import BLOCK, MODE_ID, SLOPE_DOWN, SLOPE_UP, LevelObject, Portal
 
 
 def make(mode="cube", length=40.0, ceiling=10.0, objects=None, portals=None):
@@ -134,6 +134,35 @@ def test_spider_teleport_into_spike_dies():
         s = sim.step(s, False)
     s = sim.step(s, True)
     assert s.dead
+
+
+def test_cube_rides_up_slope_onto_platform():
+    # A 3-block 45-degree ramp lifting the cube from y0 to a y3 platform.
+    objs = [LevelObject(SLOPE_UP, 10.0, 0.0), LevelObject(SLOPE_UP, 11.0, 1.0),
+            LevelObject(SLOPE_UP, 12.0, 2.0)]
+    objs += [LevelObject(BLOCK, float(x), 2.0) for x in range(13, 26)]  # platform top=3
+    sim = GDSim(Level("slope", 25.0, objs))
+    s = run(sim, lambda st: False)  # no jumping — pure ride
+    assert s.won and not s.dead
+    # It actually climbed (the platform sits at y=3).
+    peak = 0.0
+    s2 = sim.reset()
+    for _ in range(400):
+        s2 = sim.step(s2, False)
+        peak = max(peak, s2.y)
+        if s2.dead or s2.won:
+            break
+    assert peak >= 2.8
+
+
+def test_cube_rides_down_slope():
+    # Spawn on a platform, ride a down-ramp back to the floor.
+    objs = [LevelObject(BLOCK, float(x), 2.0) for x in range(0, 8)]  # platform top=3
+    objs += [LevelObject(SLOPE_DOWN, 8.0, 2.0), LevelObject(SLOPE_DOWN, 9.0, 1.0),
+             LevelObject(SLOPE_DOWN, 10.0, 0.0)]
+    sim = GDSim(Level("down", 20.0, objs), spawn_y=3.0)
+    s = run(sim, lambda st: False)
+    assert s.won and not s.dead
 
 
 def test_gamemode_portal_switches_mode():

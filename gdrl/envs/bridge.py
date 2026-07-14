@@ -20,7 +20,10 @@ from gymnasium import spaces
 
 from gdrl.envs import protocol as proto
 from gdrl.envs.observation import OBS_LEN, build_observation
-from gdrl.sim.level import BLOCK, Level, LevelObject, SPIKE
+from gdrl.sim.level import BLOCK, Level, LevelObject, SLOPE_DOWN, SLOPE_UP, SPIKE
+
+# GeometryRecord kind byte -> sim object type.
+_KIND_TO_TYPE = {0: BLOCK, 1: SPIKE, 2: SLOPE_UP, 3: SLOPE_DOWN}
 
 
 class RealGameBridge:
@@ -93,7 +96,7 @@ class RealGameBridge:
 
 def geometry_to_level(records: list[tuple[int, float, float]], length: float) -> Level:
     """Build a Level (for the shared observation grid) from a geometry dump."""
-    objs = [LevelObject(SPIKE if kind == 1 else BLOCK, x, y) for kind, x, y in records]
+    objs = [LevelObject(_KIND_TO_TYPE.get(kind, BLOCK), x, y) for kind, x, y in records]
     return Level("real", length, objs)
 
 
