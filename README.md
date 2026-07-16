@@ -128,8 +128,15 @@ reaches ~17% before hitting raised-platform / slope structures that the
 square-block sim treats as walls (slopes and the ship section are the next
 modeling gaps).
 
-Honest status: live play is a **heuristic baseline that plays the opening**, not
-a full clear. It clears the first spike and reaches ~3.8% before the double
+Sim-to-real transfer (the payoff): `play_real_agent.py` runs a sim-trained
+policy closed-loop on the real game, converting live state into the training
+frame. A GA trained **entirely in the fast sim** (100% on the imported opening)
+drives the official game to **~10.7% (x≈95)** — well past the reactive
+baseline (x≈34) and a passive agent (x≈17). It dies at one obstacle where the
+approximate sim jump arc diverges from the real game; closing that gap is jump
+calibration + an `--x-offset` alignment tune.
+
+Honest status: live play reaches the opening, not a full clear. It clears the first spike and reaches ~3.8% before the double
 spike at x≈33 — the jump timing needs calibrating to the real cube's arc, and
 the frame-locked game runs at ~60 fps (real-time), so on-hardware RL search of
 the full 890-block level (with its ship section) is impractical in one sitting.
