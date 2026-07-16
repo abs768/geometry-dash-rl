@@ -29,8 +29,12 @@ namespace {
 class Bridge {
 public:
     static Bridge& get() {
-        static Bridge instance;
-        return instance;
+        // Intentionally leaked: this owns a background accept thread + socket,
+        // and running its destructor during static teardown at game shutdown
+        // crashed (thread join / socket close on exit). The OS reclaims
+        // everything at process exit, so never destruct it.
+        static Bridge* instance = new Bridge();
+        return *instance;
     }
 
     void ensureListening() {
@@ -57,6 +61,7 @@ public:
     uint32_t frame = 0;
     bool holding = false;
     bool human_holding = false;  // live human jump input, tracked via handleButton
+    bool prev_holding = false;   // last injected hold, for edge-triggered replay input
     bool recording = false;      // passive record: stream state, DON'T frame-lock
 
 private:
@@ -242,12 +247,19 @@ class $modify(BridgeBaseLayer, GJBaseGameLayer) {
             pl->removeAllCheckpoints();
             pl->resetLevelFromStart();
             bridge.frame = 0;
+            bridge.prev_holding = false;
         } else if (act & ACT_LOAD_CHECKPOINT) {
             pl->resetLevel();  // practice mode -> respawn at last checkpoint
             bridge.frame = 0;
+            bridge.prev_holding = false;
         } else {
-            if (bridge.holding) this->m_player1->pushButton(PlayerButton::Jump);
-            else this->m_player1->releaseButton(PlayerButton::Jump);
+            // Press/release only on edges (once per press, like a real keypress)
+            // so a recorded run replays frame-identically.
+            if (bridge.holding != bridge.prev_holding) {
+                if (bridge.holding) this->m_player1->pushButton(PlayerButton::Jump);
+                else this->m_player1->releaseButton(PlayerButton::Jump);
+                bridge.prev_holding = bridge.holding;
+            }
             GJBaseGameLayer::update(dt);
         }
 
