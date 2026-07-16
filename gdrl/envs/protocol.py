@@ -23,6 +23,7 @@ MSG_GEOMETRY = 0x03
 FLAG_DEAD = 1 << 0
 FLAG_COMPLETE = 1 << 1
 FLAG_UPSIDE = 1 << 2
+FLAG_INPUT_HELD = 1 << 3  # live jump input held (human in record mode)
 
 # Action flag bits.
 ACT_HOLD = 1 << 0
@@ -31,6 +32,7 @@ ACT_REQUEST_GEOM = 1 << 2
 ACT_PRACTICE_ON = 1 << 3          # enable practice mode
 ACT_PLACE_CHECKPOINT = 1 << 4     # checkpoint at current position
 ACT_LOAD_CHECKPOINT = 1 << 5      # respawn at last checkpoint
+ACT_RECORD = 1 << 6               # don't inject; let the human play and report their input
 
 # StatePayload: u8 type, f32 x, f32 y, f32 vy, u8 grounded, u8 gamemode,
 # u8 flags, f32 length, u32 frame, f32 percent, f32 speed_mult, u8 reserved.
@@ -65,6 +67,12 @@ class State:
     def complete(self) -> bool:
         return bool(self.flags & FLAG_COMPLETE)
 
+    @property
+    def input_held(self) -> bool:
+        """Whether the game's jump input is held this frame (the human's input
+        in record mode)."""
+        return bool(self.flags & FLAG_INPUT_HELD)
+
     @classmethod
     def unpack(cls, payload: bytes) -> "State":
         (typ, x, y, vy, grounded, gamemode, flags, length,
@@ -83,7 +91,7 @@ class State:
 
 def pack_action(hold: bool, request_reset: bool = False, request_geom: bool = False,
                 practice_on: bool = False, place_checkpoint: bool = False,
-                load_checkpoint: bool = False) -> bytes:
+                load_checkpoint: bool = False, record: bool = False) -> bytes:
     flags = 0
     if hold:
         flags |= ACT_HOLD
@@ -97,6 +105,8 @@ def pack_action(hold: bool, request_reset: bool = False, request_geom: bool = Fa
         flags |= ACT_PLACE_CHECKPOINT
     if load_checkpoint:
         flags |= ACT_LOAD_CHECKPOINT
+    if record:
+        flags |= ACT_RECORD
     return struct.pack("<BB", MSG_ACTION, flags)
 
 

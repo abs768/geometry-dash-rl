@@ -22,9 +22,10 @@ enum class MsgType : uint8_t {
 
 // State flags (bitfield in State::flags).
 enum StateFlag : uint8_t {
-    FLAG_DEAD      = 1 << 0,
-    FLAG_COMPLETE  = 1 << 1,
-    FLAG_UPSIDE    = 1 << 2,  // gravity inverted
+    FLAG_DEAD       = 1 << 0,
+    FLAG_COMPLETE   = 1 << 1,
+    FLAG_UPSIDE     = 1 << 2,  // gravity inverted
+    FLAG_INPUT_HELD = 1 << 3,  // the game's jump input is held this frame (human in record mode)
 };
 
 // Action flags (bitfield in the action byte).
@@ -35,6 +36,7 @@ enum ActionFlag : uint8_t {
     ACT_PRACTICE_ON      = 1 << 3,  // togglePracticeMode(true)
     ACT_PLACE_CHECKPOINT = 1 << 4,  // markCheckpoint() at the current position
     ACT_LOAD_CHECKPOINT  = 1 << 5,  // respawn at the last checkpoint (segment search)
+    ACT_RECORD           = 1 << 6,  // don't inject input; let the human play, report their input
 };
 
 // Gamemodes, matching PlayerObject state. Only Cube is handled in v0.

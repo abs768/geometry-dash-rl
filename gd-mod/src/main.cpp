@@ -56,6 +56,8 @@ public:
     // GJBaseGameLayer::update hook that does the exchange.
     uint32_t frame = 0;
     bool holding = false;
+    bool human_holding = false;  // live human jump input, tracked via handleButton
+    bool recording = false;      // passive record: stream state, DON'T frame-lock
 
 private:
     bool m_started = false;
@@ -175,14 +177,42 @@ class $modify(BridgePlayLayer, PlayLayer) {
 // not the editor) and an agent is connected. Blocking for the action is the
 // frame-lock: the game waits for the agent each frame.
 class $modify(BridgeBaseLayer, GJBaseGameLayer) {
+    // Track the human's live jump input (button 1 = jump for player 1) so record
+    // mode can capture their play frame-by-frame.
+    void handleButton(bool down, int button, bool isPlayer1) {
+        GJBaseGameLayer::handleButton(down, button, isPlayer1);
+        if (isPlayer1 && button == 1) Bridge::get().human_holding = down;
+    }
+
+    // Build a state payload for the current frame (with the human's live input).
+    StatePayload frameState(PlayLayer* pl) {
+        StatePayload s = readState(pl);
+        if (Bridge::get().human_holding) s.flags |= FLAG_INPUT_HELD;
+        s.frame = Bridge::get().frame++;
+        return s;
+    }
+
     void update(float dt) {
         Bridge& bridge = Bridge::get();
         SocketServer* srv = bridge.server();
         auto* pl = geode::cast::typeinfo_cast<PlayLayer*>(this);
-        if (!srv || !srv->connected() || !pl) { GJBaseGameLayer::update(dt); return; }
+        if (!srv || !srv->connected() || !pl) {
+            bridge.recording = false;  // client gone -> leave record mode
+            GJBaseGameLayer::update(dt);
+            return;
+        }
 
-        // Block for the agent's action (short timeout so a dead agent can't hang
-        // the game forever; on timeout, repeat the previous input).
+        // PASSIVE RECORD MODE: run the game at native speed (NO frame-lock) and
+        // just stream state + the human's input each frame. This is what makes
+        // human play lag-free — nothing waits on the socket.
+        if (bridge.recording) {
+            GJBaseGameLayer::update(dt);           // native step; human drives
+            StatePayload s = frameState(pl);
+            if (!srv->send(&s, sizeof(s))) bridge.recording = false;
+            return;
+        }
+
+        // FRAME-LOCKED AGENT MODE: block for the action, apply it, step, reply.
         std::vector<uint8_t> msg;
         uint8_t act = 0;
         if (srv->recv(msg, /*timeout_ms=*/1000) && msg.size() >= 2 &&
@@ -191,31 +221,38 @@ class $modify(BridgeBaseLayer, GJBaseGameLayer) {
             bridge.holding = act & ACT_HOLD;
         }
 
-        // Checkpoint / practice controls for segment-by-segment search.
+        if (act & ACT_RECORD) {
+            // Enter passive record mode: normal (non-practice) so death restarts
+            // the whole level, optionally reset to start, then stream from here.
+            bridge.recording = true;
+            pl->togglePracticeMode(false);
+            if (act & ACT_REQUEST_RESET) { pl->removeAllCheckpoints(); pl->resetLevelFromStart(); }
+            bridge.frame = 0;
+            GJBaseGameLayer::update(dt);
+            if (act & ACT_REQUEST_GEOM) sendGeometry(srv, pl);
+            StatePayload s = frameState(pl);
+            srv->send(&s, sizeof(s));
+            return;
+        }
+
         if (act & ACT_PRACTICE_ON) pl->togglePracticeMode(true);
         if (act & ACT_PLACE_CHECKPOINT) pl->markCheckpoint();
 
         if (act & ACT_REQUEST_RESET) {
             pl->removeAllCheckpoints();
-            pl->resetLevelFromStart();   // full restart, checkpoints cleared
+            pl->resetLevelFromStart();
             bridge.frame = 0;
         } else if (act & ACT_LOAD_CHECKPOINT) {
-            // In practice mode resetLevel() respawns at the last checkpoint —
-            // this is what GD itself does on death. Cleaner than loading the
-            // checkpoint object directly (which left the death state set).
-            pl->resetLevel();
+            pl->resetLevel();  // practice mode -> respawn at last checkpoint
             bridge.frame = 0;
         } else {
-            // Apply input before the frame's physics, then step.
             if (bridge.holding) this->m_player1->pushButton(PlayerButton::Jump);
             else this->m_player1->releaseButton(PlayerButton::Jump);
             GJBaseGameLayer::update(dt);
         }
 
         if (act & ACT_REQUEST_GEOM) sendGeometry(srv, pl);
-
-        StatePayload s = readState(pl);
-        s.frame = bridge.frame++;
+        StatePayload s = frameState(pl);
         srv->send(&s, sizeof(s));
     }
 };

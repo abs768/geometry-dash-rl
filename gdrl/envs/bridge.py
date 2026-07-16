@@ -91,9 +91,10 @@ class RealGameBridge:
 
     def send_action(self, hold: bool, request_reset: bool = False,
                     request_geom: bool = False, practice_on: bool = False,
-                    place_checkpoint: bool = False, load_checkpoint: bool = False) -> None:
+                    place_checkpoint: bool = False, load_checkpoint: bool = False,
+                    record: bool = False) -> None:
         self._send_msg(proto.pack_action(hold, request_reset, request_geom,
-                                         practice_on, place_checkpoint, load_checkpoint))
+                                         practice_on, place_checkpoint, load_checkpoint, record))
 
 
 def geometry_to_level(records: list[tuple[int, float, float]], length: float) -> Level:
