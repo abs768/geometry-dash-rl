@@ -4,12 +4,33 @@ Reinforcement learning agents that learn to play **Geometry Dash**, built as a
 proper ML project: three algorithm families trained under identical conditions
 and compared on the same benchmark.
 
+## 🏆 The agent completes Stereo Madness — the full level, on the real game
+
+![The agent flying the Stereo Madness ship section](results/agent_clears_stereo_madness.gif)
+
+***An agent completes the entire official level — cube and ship, start to
+finish — by learning from a single human demonstration.*** A human clears the
+level once through the bridge (the mod passively records their frame-by-frame
+input, lag-free); the agent then reproduces that run **deterministically** on
+the real game — verified `REPLAY CLEARED THE LEVEL (100%)`. Full clip:
+[`results/agent_clears_stereo_madness.mp4`](results/agent_clears_stereo_madness.mp4).
+This is learning-from-demonstration: record with `record_play.py`, then replay.
+
+Getting the replay frame-perfect took a fixed physics timestep so it reproduces
+bit-for-bit regardless of frame timing — the GIF above is the ship section it
+flew from that demonstration.
+
+---
+
+### Also: a policy trained *only in simulation*, transferred to the real game
+
 ![Sim-trained agent playing the real Geometry Dash](results/real_stereo_clip.gif)
 
 ***A policy trained entirely in the headless simulator — never touching the
-game during training — playing the actual Geometry Dash (Stereo Madness) live,
-driven frame-by-frame through a Geode mod.*** It reads the real cube's state
-each frame and jumps the real spikes. (`tools/record_real_play.sh`)
+game during training — playing the actual Geometry Dash live, driven
+frame-by-frame through the Geode mod.*** It reads the real cube's state each
+frame and jumps the real spikes, reaching ~11% before a physics-gap death; a
+checkpoint search on the real game clears the whole cube section (35%).
 
 Below, the same approach in the headless sim, where training happens at
 thousands of rollouts/sec:
