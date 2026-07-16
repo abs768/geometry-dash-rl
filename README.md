@@ -4,6 +4,11 @@ Reinforcement learning agents that learn to play **Geometry Dash**, built as a
 proper ML project: three algorithm families trained under identical conditions
 and compared on the same benchmark.
 
+![GA playing the Stereo Madness opening](results/stereo_open.gif)
+
+*A genetic-algorithm policy trained in the headless sim clearing the imported
+opening of Stereo Madness. Render any rollout with `render.py`.*
+
 - **DQN** (with double-DQN option) — value-based baseline, reproduces prior work
   ([geometry-dash-ai](https://github.com/ThePickleGawd/geometry-dash-ai)).
 - **PPO** — on-policy actor-critic with GAE, trained on vectorized environments.
@@ -59,6 +64,7 @@ sweep.py       run {dqn,ppo,ga} × seeds × levels
 evaluate.py    greedy-evaluate all runs -> runs/summary.csv
 plot.py        build the seeds × algorithms comparison figure
 play.py        roll out a checkpoint, ASCII render
+render.py      render a rollout to a shareable GIF (cube/blocks/spikes/slopes)
 ```
 
 ## Quickstart
