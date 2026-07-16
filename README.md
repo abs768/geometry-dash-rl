@@ -4,10 +4,20 @@ Reinforcement learning agents that learn to play **Geometry Dash**, built as a
 proper ML project: three algorithm families trained under identical conditions
 and compared on the same benchmark.
 
+![Sim-trained agent playing the real Geometry Dash](results/real_stereo_clip.gif)
+
+***A policy trained entirely in the headless simulator — never touching the
+game during training — playing the actual Geometry Dash (Stereo Madness) live,
+driven frame-by-frame through a Geode mod.*** It reads the real cube's state
+each frame and jumps the real spikes. (`tools/record_real_play.sh`)
+
+Below, the same approach in the headless sim, where training happens at
+thousands of rollouts/sec:
+
 ![GA playing the Stereo Madness opening](results/stereo_open.gif)
 
-*A genetic-algorithm policy trained in the headless sim clearing the imported
-opening of Stereo Madness. Render any rollout with `render.py`.*
+*The GA clearing the imported opening of Stereo Madness in the sim. Render any
+rollout with `render.py`.*
 
 ### Watch the agents play (every gamemode)
 
