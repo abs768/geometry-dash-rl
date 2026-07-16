@@ -23,6 +23,11 @@
 using namespace geode::prelude;
 using namespace gdbridge;
 
+// Fixed physics timestep for controlled (record/replay/agent) frames, so a
+// recorded run replays bit-identically regardless of real frame timing / socket
+// latency. Normal (no-client) play keeps the game's real dt.
+static constexpr float STEP_DT = 1.0f / 60.0f;
+
 namespace {
 
 // One bridge for the whole process; hooks talk to it.
@@ -211,7 +216,7 @@ class $modify(BridgeBaseLayer, GJBaseGameLayer) {
         // just stream state + the human's input each frame. This is what makes
         // human play lag-free — nothing waits on the socket.
         if (bridge.recording) {
-            GJBaseGameLayer::update(dt);           // native step; human drives
+            GJBaseGameLayer::update(STEP_DT);      // fixed timestep so record == replay
             StatePayload s = frameState(pl);
             if (!srv->send(&s, sizeof(s))) bridge.recording = false;
             return;
@@ -233,7 +238,7 @@ class $modify(BridgeBaseLayer, GJBaseGameLayer) {
             pl->togglePracticeMode(false);
             if (act & ACT_REQUEST_RESET) { pl->removeAllCheckpoints(); pl->resetLevelFromStart(); }
             bridge.frame = 0;
-            GJBaseGameLayer::update(dt);
+            GJBaseGameLayer::update(STEP_DT);
             if (act & ACT_REQUEST_GEOM) sendGeometry(srv, pl);
             StatePayload s = frameState(pl);
             srv->send(&s, sizeof(s));
@@ -260,7 +265,7 @@ class $modify(BridgeBaseLayer, GJBaseGameLayer) {
                 else this->m_player1->releaseButton(PlayerButton::Jump);
                 bridge.prev_holding = bridge.holding;
             }
-            GJBaseGameLayer::update(dt);
+            GJBaseGameLayer::update(STEP_DT);
         }
 
         if (act & ACT_REQUEST_GEOM) sendGeometry(srv, pl);
