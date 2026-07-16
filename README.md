@@ -1,234 +1,195 @@
 # geometry-dash-rl
 
-Reinforcement learning agents that learn to play **Geometry Dash**, built as a
-proper ML project: three algorithm families trained under identical conditions
-and compared on the same benchmark.
-
-## 🏆 The agent completes Stereo Madness — the full level, on the real game
+Reinforcement-learning agents for **Geometry Dash** — trained in a fast headless
+simulator and deployed on the **retail game** through a custom C++ mod. The
+project covers a controlled DQN/PPO/GA comparison, sim-to-real transfer, and a
+full-level clear via learning from demonstration.
 
 ![The agent flying the Stereo Madness ship section](results/agent_clears_stereo_madness.gif)
 
-***An agent completes the entire official level — cube and ship, start to
-finish — by learning from a single human demonstration.*** A human clears the
-level once through the bridge (the mod passively records their frame-by-frame
-input, lag-free); the agent then reproduces that run **deterministically** on
-the real game — verified `REPLAY CLEARED THE LEVEL (100%)`. Full clip:
-[`results/agent_clears_stereo_madness.mp4`](results/agent_clears_stereo_madness.mp4).
-This is learning-from-demonstration: record with `record_play.py`, then replay.
-From that same demonstration, a **behavior-cloning policy** (`train_bc.py`)
-learns the human's jump decisions at **90.7% val accuracy (jump F1 0.82)**.
+*An agent completing the ship section of the official Stereo Madness on retail
+Geometry Dash 2.2.*
 
-**📄 Full write-up:** [CASE_STUDY.md](CASE_STUDY.md) — the portfolio version.
-
-Getting the replay frame-perfect took a fixed physics timestep so it reproduces
-bit-for-bit regardless of frame timing — the GIF above is the ship section it
-flew from that demonstration.
+**[📄 Case study](CASE_STUDY.md)** · **[Results & methodology](results/RESULTS.md)** · 41 tests · Python + PyTorch + C++/Geode
 
 ---
 
-### Also: a policy trained *only in simulation*, transferred to the real game
+## What's here (and what each claim actually means)
 
-![Sim-trained agent playing the real Geometry Dash](results/real_stereo_clip.gif)
+| Result | What it is — precisely |
+|--------|------------------------|
+| **DQN vs PPO vs GA comparison** | Controlled, seeded experiment in the sim. Reproducible finding: on-policy PPO gets trapped in a local optimum where value-based/evolutionary methods don't. |
+| **Sim-to-real transfer** | A policy trained *only in the sim* drives the retail game via the mod, reaching ~11%; a checkpoint search on the real game clears the full cube section (~35%). |
+| **Full-level clear** | The complete official level, via **learning from demonstration** — a recorded human run replayed deterministically on the real game (not autonomous RL; see [Honest scope](#honest-scope--limitations)). |
+| **Behavior cloning** | A policy trained on that demonstration predicts the human's jumps at **90.7% val accuracy (jump F1 0.82)**. |
 
-***A policy trained entirely in the headless simulator — never touching the
-game during training — playing the actual Geometry Dash live, driven
-frame-by-frame through the Geode mod.*** It reads the real cube's state each
-frame and jumps the real spikes, reaching ~11% before a physics-gap death; a
-checkpoint search on the real game clears the whole cube section (35%).
+## Why a simulator (the core idea)
 
-Below, the same approach in the headless sim, where training happens at
-thousands of rollouts/sec:
+Prior work ([geometry-dash-ai](https://github.com/ThePickleGawd/geometry-dash-ai))
+trains RL agents **inside the running game**, capping learning at real time
+(60 fps). This project decouples training from the game: a **headless simulator**
+runs the physics at **>2,000× real time** (~150k–240k steps/sec on one CPU core),
+so agents train in seconds, and the retail game — reached through a
+[Geode](https://geode-sdk.org) mod — is the **evaluation target**, not the
+training loop. Agents observe **structured state** (player kinematics + a
+look-ahead occupancy grid), which is far more sample-efficient than pixels.
 
-![GA playing the Stereo Madness opening](results/stereo_open.gif)
+## Results
 
-*The GA clearing the imported opening of Stereo Madness in the sim. Render any
-rollout with `render.py`.*
+### Controlled algorithm comparison
 
-### Watch the agents play (every gamemode)
+3 algorithms × 3 seeds × 2 levels, identical observation/reward, greedy
+evaluation. Reproduce with `python sweep.py && python evaluate.py && python plot.py`.
+Full methodology: [`results/RESULTS.md`](results/RESULTS.md).
 
-| Ship | Robot | Spider |
-|------|-------|--------|
-| ![ship](results/ship_gauntlet.gif) | ![robot](results/robot_leap.gif) | ![spider](results/spider_switch.gif) |
-| thrust to weave past obstacles | variable-height jumps | tap-teleport between floor & ceiling |
+![DQN vs PPO vs GA](results/comparison.png)
 
-All rendered from the headless sim with `render.py` — the same policies that
-transfer to the real game via the bridge.
-
-- **DQN** (with double-DQN option) — value-based baseline, reproduces prior work
-  ([geometry-dash-ai](https://github.com/ThePickleGawd/geometry-dash-ai)).
-- **PPO** — on-policy actor-critic with GAE, trained on vectorized environments.
-- **Genetic Algorithm** — neuroevolution of policy weights; Geometry Dash levels
-  are deterministic, which is exactly the regime where GA memorization shines.
-
-## Why this beats prior work
-
-Prior projects train **inside the real game over a TCP socket**, so learning is
-capped at real-time speed. This project trains in a **headless simulator**
-(thousands of steps/sec, embarrassingly parallel) and treats the official game —
-reached through a [Geode](https://geode-sdk.org) mod, see [`gd-mod/`](gd-mod/) —
-as the **evaluation target**, not the training environment.
-
-Second lever: agents observe **structured state** (player kinematics + a
-look-ahead occupancy grid of upcoming geometry) instead of raw pixels, which is
-dramatically more sample-efficient. A pixel-based variant is planned as an
-ablation.
-
-## Results so far
-
-Three algorithms × three seeds × two levels, identical observation/action/reward,
-greedy evaluation. Full write-up in [`results/RESULTS.md`](results/RESULTS.md).
-
-| Algorithm | spikes_easy | blocks_and_spikes | Seeds solved |
-|-----------|:-----------:|:-----------------:|:------------:|
-| DQN (double)      | 100% | 100% | 6/6 |
-| Genetic Algorithm | 100% | 100% | 6/6 |
+| Algorithm | `spikes_easy` | `blocks_and_spikes` | seeds solved |
+|-----------|:-------------:|:-------------------:|:------------:|
+| DQN (double)      | 100% | 100% | **6/6** |
+| Genetic Algorithm | 100% | 100% | **6/6** |
 | PPO               | 100% | 48%  | 4/6 |
 
-![comparison](results/comparison.png)
+**Finding:** DQN and the GA solve every seed; **PPO gets trapped in a local
+optimum** at the first death-risky jump (free progress up to it, a −10 penalty
+for the risk) on 2/3 seeds of the harder level — and 6M steps does not rescue
+it. A single-algorithm project cannot surface this.
 
-Headline finding: DQN and the GA solve every seed, but **PPO gets trapped in a
-local optimum** at the first death-risky jump on the harder level on 2 of 3
-seeds — and more compute (6M steps) does not rescue it. A controlled multi-algorithm
-comparison surfaces this; the prior single-algorithm work cannot.
+### Sim-to-real and the full clear
 
-## Layout
+- **Watch a sim policy on the real game** — `results/real_stereo_clip.gif`
+  (dies ~11% at a physics-gap obstacle).
+- **The full clear** — `results/agent_clears_stereo_madness.mp4` (learning from
+  demonstration, 100%).
+
+| Sim (GA on the imported opening) | Ship | Robot | Spider |
+|---|---|---|---|
+| ![sim](results/stereo_open.gif) | ![ship](results/ship_gauntlet.gif) | ![robot](results/robot_leap.gif) | ![spider](results/spider_switch.gif) |
+
+## How it works
 
 ```
-gdrl/sim/      headless physics simulator (cube mode, v0.1)
-gdrl/levels/   Geometry Dash level-string importer (parser + object-ID tables)
-gdrl/envs/     Gymnasium environment (sim backend + real-game bridge stub)
-gdrl/models/   policy / Q networks
-gdrl/agents/   dqn.py, ppo.py, ga.py trainers
-configs/       YAML recipes, one per experiment
-levels/        level files (JSON block format)
-tests/         physics, env-API and determinism tests
-gd-mod/        Geode mod skeleton + bridge protocol spec
-results/       comparison figure + RESULTS.md write-up
-train.py       entry point: python train.py --config configs/ppo.yaml
-sweep.py       run {dqn,ppo,ga} × seeds × levels
-evaluate.py    greedy-evaluate all runs -> runs/summary.csv
-plot.py        build the seeds × algorithms comparison figure
-play.py        roll out a checkpoint, ASCII render
-render.py      render a rollout to a shareable GIF (cube/blocks/spikes/slopes)
+Headless sim ──► RL agents (DQN/PPO/GA) ──► Python bridge ──► Geode C++ mod ──► retail game
+ >2,000× RT         controlled comparison      binary socket      hooks + input inject
 ```
 
-## Quickstart
+- **`gdrl/sim/`** — deterministic physics for all seven gamemodes, slopes,
+  gravity/speed portals. `step()` is a pure function of (state, action, level).
+- **`gdrl/envs/`** — Gymnasium env (`GDEnv`, sim backend) and the real-game
+  bridge (`GDRealEnv`, `RealGameBridge`) sharing one observation builder, so a
+  sim-trained policy sees identical inputs on the real game.
+- **`gdrl/agents/`** — `dqn.py` (double DQN), `ppo.py` (GAE, vectorized envs),
+  `ga.py` (elitism + Gaussian mutation).
+- **`gd-mod/`** — C++ Geode mod: hooks `GJBaseGameLayer::update`, streams state
+  and injects input over a length-prefixed binary protocol (`src/protocol.hpp`,
+  mirrored in `gdrl/envs/protocol.py`). Built and verified on **GD 2.2081**.
+- **Test-first bridge:** a protocol-faithful mock of the game backed by the sim
+  (`gdrl/envs/mock_mod.py`) verifies the entire Python↔game path (`tests/test_bridge.py`)
+  without the game — sim-vs-bridge observations match to float32 precision.
+
+## Repository layout
+
+```
+gdrl/sim/        physics simulator (7 gamemodes, slopes, portals)
+gdrl/envs/       Gymnasium env + real-game bridge + sim-backed mock + protocol
+gdrl/agents/     dqn.py, ppo.py, ga.py
+gdrl/levels/     Geometry Dash level-string importer (base64/zlib, object tables)
+gdrl/models/     MLP / actor-critic networks
+configs/         one YAML recipe per experiment
+levels/          level files (JSON)
+gd-mod/          Geode C++ mod (protocol, socket server, hooks) + build recipe
+tests/           41 tests: physics, env API, determinism, bridge, gamemodes, importer
+results/         comparison figure, RESULTS.md, footage
+train.py sweep.py evaluate.py plot.py play.py render.py       # sim workflow
+prepare_real_level.py play_real_agent.py beat_level.py        # real-game workflow
+record_play.py train_bc.py                                    # learning from demonstration
+```
+
+## Setup
+
+Requires Python 3.10+.
 
 ```bash
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                   # physics + env + determinism tests
-python train.py --config configs/ppo.yaml
-python play.py --run runs/ppo_spikes --render
+pytest                 # 41 tests: physics, env, determinism, bridge, importer
 ```
 
-## Environment
+### Reproduce the headline results (sim only, no game needed)
+
+```bash
+python sweep.py                          # DQN/PPO/GA × 3 seeds × 2 levels
+python evaluate.py                       # greedy eval -> runs/summary.csv
+python plot.py                           # -> results/comparison.png
+python render.py --run runs/ga_stereo_open --algo ga --level stereo_madness_open --out out.gif
+```
+
+### The real-game workflow (needs GD 2.2 on Steam + the Geode mod)
+
+Build/run instructions are in [`gd-mod/README.md`](gd-mod/README.md). Once the
+mod is loaded and you're in a level:
+
+```bash
+python play_real_agent.py --run runs/ga_stereo_open --algo ga --level stereo_madness  # sim policy on real game
+python record_play.py --out recordings/run.json      # record a human clear
+python record_play.py --replay recordings/run.json   # replay it (deterministic)
+python train_bc.py --rec recordings/run.json         # behavior cloning on the demo
+```
+
+## Environment specification
 
 | | |
 |---|---|
-| Action | `Discrete(2)` — release / hold (jump). Matches real input exactly. |
-| Observation | player `[y, vy, grounded]` + look-ahead grid (20 cols × 10 rows × {solid, hazard}), flattened → 403 floats |
-| Reward | `+Δx` per step (progress in blocks), `−10` on death, `+10` on completion |
-| Episode end | death, level completion, or step cap |
+| Action | `Discrete(2)` — release / hold (jump). Matches the game's single binary input. |
+| Observation | 412 floats: player `[y, vy, grounded, frac_x]` + look-ahead grid (20×10×{solid, hazard}) + gamemode one-hot (7) + gravity |
+| Reward | `+Δx` per step (blocks), `−10` on death, `+10` on completion |
+| Episode end | death, completion, or step cap |
 
-Physics constants live in `gdrl/sim/physics.py`. They are community-derived
-approximations of cube-mode physics (~2.1-block jump apex, 10.38 blocks/s at 1×
-speed) and are the calibration surface for sim-to-real transfer: the Geode mod
-will log real trajectories and the constants get fitted to match.
+Physics constants (`gdrl/sim/physics.py`) are community-derived approximations
+(~2.1-block jump apex, ~10.4 blocks/s at 1×). Cube mode is calibrated; the other
+gamemodes are approximate (see below).
 
 ### Gamemodes
 
-The sim is gamemode-aware. Levels declare a `start_mode` and can switch mode,
-gravity, or speed at **portals** (see the JSON format in `gdrl/sim/level.py`).
-The observation carries a gamemode one-hot and the gravity direction so a
-single policy can condition on the current mode.
+All seven are implemented; the observation carries a gamemode one-hot + gravity
+so one policy conditions on the current mode. Each is verified as a real control
+task by a GA learning a dedicated level where constant policies die
+(`ship_gauntlet`, `robot_leap`, `spider_switch`).
 
 | Mode | Input behaviour | Fidelity |
 |------|-----------------|----------|
-| cube  | hold = jump when grounded | calibrated baseline (unchanged from v0.1) |
-| ship  | hold = thrust up, release = fall | approximate, controllable |
+| cube  | hold = jump when grounded | calibrated |
+| ship  | hold = thrust, release = fall | approximate |
 | wave  | hold = up 45°, release = down 45° | approximate |
 | ball  | tap = flip gravity | approximate |
 | ufo   | tap = upward impulse | approximate |
-| robot | hold = variable-height jump (longer hold → higher) | approximate |
-| spider| tap = instant teleport to opposite surface + gravity flip | approximate |
+| robot | hold = variable-height jump | approximate |
+| spider| tap = teleport to opposite surface | approximate |
 
-All seven gamemodes are implemented. The non-cube constants are *approximate* —
-chosen for plausible, controllable motion, not frame-perfect GD behaviour — and
-are flagged for calibration against real trajectories via the Geode mod. Each
-mode is a genuine control task, verified by GA agents learning dedicated levels
-where constant policies fail:
+## Honest scope & limitations
 
-- `ship_gauntlet` — never/always-thrust die on floor/ceiling obstacles; GA weaves through.
-- `robot_leap` — a wall needs a long-hold high jump; short/no jump dies, GA clears it.
-- `spider_switch` — floor and ceiling spikes force teleport timing; constant policies die, GA solves it.
+I'd rather state these up front:
 
-## Playing the real game
-
-The bridge drives the official game live. Verified on **Stereo Madness (GD
-2.208)**: the mod streams the cube's real position/velocity/gamemode and dumps
-the level geometry (~2.4k objects), and `play_real_reactive.py` runs a
-geometry-aware reactive controller that reads live state and jumps over hazards.
-
-Sim-to-real map (gate #2): `prepare_real_level.py` converts the mod's clean
-geometry dump (object centers, GD ground line ≈ y3.0) into a sim-ready level in
-our coordinate frame. Validated: a no-op agent dies at the first real spike,
-matching the game. A **GA trained in the fast sim solves the opening 126 blocks
-of real Stereo Madness (100%, 6 generations)**; trained on the full level it
-reaches ~17% before hitting raised-platform / slope structures that the
-square-block sim treats as walls (slopes and the ship section are the next
-modeling gaps).
-
-Sim-to-real transfer (the payoff): `play_real_agent.py` runs a sim-trained
-policy closed-loop on the real game, converting live state into the training
-frame. A GA trained **entirely in the fast sim** (100% on the imported opening)
-drives the official game to **~10.7% (x≈95)** — well past the reactive
-baseline (x≈34) and a passive agent (x≈17). It dies at one obstacle where the
-approximate sim jump arc diverges from the real game; closing that gap is jump
-calibration + an `--x-offset` alignment tune.
-
-Honest status: live play reaches the opening, not a full clear. It clears the first spike and reaches ~3.8% before the double
-spike at x≈33 — the jump timing needs calibrating to the real cube's arc, and
-the frame-locked game runs at ~60 fps (real-time), so on-hardware RL search of
-the full 890-block level (with its ship section) is impractical in one sitting.
-Two things gate a full clear and are the honest next steps: (1) the mod's
-geometry dump flags every non-spike object as solid, so it isn't a clean
-collision map (needs the real GD solid-object-ID table); (2) sim physics need
-calibration against logged real trajectories (real spawn is y≈3.5, not 0).
-
-## Importing official levels
-
-`import_level.py` turns a Geometry Dash level string (or a `.gmd` export) into a
-sim JSON level, and prints a **coverage report** so you can see how much of the
-level the cube-only sim actually understands before training:
-
-```bash
-python import_level.py --gmd path/to/level.gmd --out levels/my_level.json
-python import_level.py --string "<base64…>" --official --name stereo_madness
-```
-
-The parser handles the real wire format (URL-safe base64 + zlib, `;`/`,` inner
-string, center coordinates ÷30 − 0.5) and classifies objects via the tables in
-[`gdrl/levels/objects.py`](gdrl/levels/objects.py) — extend those to widen
-coverage; unrecognised IDs are reported, never guessed.
-
-**Honest caveat:** the sim is currently **cube-only**, and most official levels
-(Stereo Madness, the Meltdown levels, …) contain ship/ball/robot sections. The
-importer parses them and reports the gamemode breakdown, but the agent can only
-play the cube stretches until those gamemodes are implemented. The round-trip
-through the genuine GD format is verified in `tests/test_levels.py`; a trained
-agent completes a level re-imported through that format.
+- **The guaranteed full clear is deterministic replay of a human demonstration,
+  not an autonomous RL agent solving the level.** The behavior-cloning policy
+  *learns* the input mapping (90.7% val acc) but, like BC on a single
+  frame-perfect level, drifts — so replay is used for the exact clear.
+- **Sim-to-real transfer dies at ~11%** because the sim jump arc isn't yet
+  calibrated to the real game frame-for-frame. Autonomous checkpoint search
+  reaches ~35% (the cube section) before the ship section's continuous control.
+- **Non-cube physics are approximate** (chosen for plausible motion, pending
+  calibration against logged real trajectories); robot/spider are first-pass.
+- **The mod targets macOS + GD 2.2081** (Geode's supported build). Field reads
+  are marked `VERIFY` in `gd-mod/src/main.cpp`.
 
 ## Roadmap
 
-- [x] Headless sim: cube mode, blocks/spikes, deterministic step
-- [x] Gymnasium env + structured observations
-- [x] DQN / PPO / GA trainers + YAML recipes
-- [x] Seeds × algorithms comparison sweep + figure (`results/`)
-- [x] Bridge: binary protocol, `GDRealEnv`, sim-backed mock, end-to-end tests (`gd-mod/`, `eval_real.py`)
-- [x] GD level-string importer: base64/zlib decode, object-ID tables, coverage report (`gdrl/levels/`, `import_level.py`)
-- [ ] Geode mod: build against GD + verify live game-state reads (C++ written, `VERIFY` markers in `gd-mod/src/main.cpp`)
-- [x] All seven gamemodes (cube/ship/ball/ufo/wave/robot/spider) + gravity/speed portals + gamemode-conditioned observation
-- [ ] Physics calibration against real-game trajectories (esp. the approximate non-cube modes)
-- [ ] Dual and mini modes; per-mode hitbox sizes
-- [ ] Pixel-observation ablation, W&B tracking, seeds × algorithms comparison report
+- [x] Headless sim (7 gamemodes), Gymnasium env, structured observations
+- [x] DQN / PPO / GA trainers + seeded comparison sweep + figure
+- [x] Geode mod built & verified on real GD 2.2081 (state stream + input inject + checkpoints)
+- [x] GD level-string importer (base64/zlib, object-type classification)
+- [x] Sim-to-real transfer + on-real-game checkpoint search
+- [x] Learning from demonstration (record/replay) + behavior cloning
+- [ ] Physics calibration against logged real trajectories (esp. non-cube modes)
+- [ ] Dual/mini modes; per-mode hitboxes
+- [ ] Pixel-observation ablation; W&B tracking
