@@ -9,6 +9,16 @@ and compared on the same benchmark.
 *A genetic-algorithm policy trained in the headless sim clearing the imported
 opening of Stereo Madness. Render any rollout with `render.py`.*
 
+### Watch the agents play (every gamemode)
+
+| Ship | Robot | Spider |
+|------|-------|--------|
+| ![ship](results/ship_gauntlet.gif) | ![robot](results/robot_leap.gif) | ![spider](results/spider_switch.gif) |
+| thrust to weave past obstacles | variable-height jumps | tap-teleport between floor & ceiling |
+
+All rendered from the headless sim with `render.py` — the same policies that
+transfer to the real game via the bridge.
+
 - **DQN** (with double-DQN option) — value-based baseline, reproduces prior work
   ([geometry-dash-ai](https://github.com/ThePickleGawd/geometry-dash-ai)).
 - **PPO** — on-policy actor-critic with GAE, trained on vectorized environments.
