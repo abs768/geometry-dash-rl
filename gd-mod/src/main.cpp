@@ -200,7 +200,10 @@ class $modify(BridgeBaseLayer, GJBaseGameLayer) {
             pl->resetLevelFromStart();   // full restart, checkpoints cleared
             bridge.frame = 0;
         } else if (act & ACT_LOAD_CHECKPOINT) {
-            pl->loadLastCheckpoint();     // respawn at the last checkpoint
+            // In practice mode resetLevel() respawns at the last checkpoint —
+            // this is what GD itself does on death. Cleaner than loading the
+            // checkpoint object directly (which left the death state set).
+            pl->resetLevel();
             bridge.frame = 0;
         } else {
             // Apply input before the frame's physics, then step.
