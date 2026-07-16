@@ -90,8 +90,10 @@ class RealGameBridge:
             raise ValueError(f"unexpected message {tag:#x} while awaiting STATE")
 
     def send_action(self, hold: bool, request_reset: bool = False,
-                    request_geom: bool = False) -> None:
-        self._send_msg(proto.pack_action(hold, request_reset, request_geom))
+                    request_geom: bool = False, practice_on: bool = False,
+                    place_checkpoint: bool = False, load_checkpoint: bool = False) -> None:
+        self._send_msg(proto.pack_action(hold, request_reset, request_geom,
+                                         practice_on, place_checkpoint, load_checkpoint))
 
 
 def geometry_to_level(records: list[tuple[int, float, float]], length: float) -> Level:

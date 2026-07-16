@@ -26,8 +26,11 @@ FLAG_UPSIDE = 1 << 2
 
 # Action flag bits.
 ACT_HOLD = 1 << 0
-ACT_REQUEST_RESET = 1 << 1
+ACT_REQUEST_RESET = 1 << 1        # full restart from start, clear checkpoints
 ACT_REQUEST_GEOM = 1 << 2
+ACT_PRACTICE_ON = 1 << 3          # enable practice mode
+ACT_PLACE_CHECKPOINT = 1 << 4     # checkpoint at current position
+ACT_LOAD_CHECKPOINT = 1 << 5      # respawn at last checkpoint
 
 # StatePayload: u8 type, f32 x, f32 y, f32 vy, u8 grounded, u8 gamemode,
 # u8 flags, f32 length, u32 frame, f32 percent, f32 speed_mult, u8 reserved.
@@ -78,7 +81,9 @@ class State:
                            self.length, self.frame, self.percent, self.speed_mult, 0)
 
 
-def pack_action(hold: bool, request_reset: bool = False, request_geom: bool = False) -> bytes:
+def pack_action(hold: bool, request_reset: bool = False, request_geom: bool = False,
+                practice_on: bool = False, place_checkpoint: bool = False,
+                load_checkpoint: bool = False) -> bytes:
     flags = 0
     if hold:
         flags |= ACT_HOLD
@@ -86,6 +91,12 @@ def pack_action(hold: bool, request_reset: bool = False, request_geom: bool = Fa
         flags |= ACT_REQUEST_RESET
     if request_geom:
         flags |= ACT_REQUEST_GEOM
+    if practice_on:
+        flags |= ACT_PRACTICE_ON
+    if place_checkpoint:
+        flags |= ACT_PLACE_CHECKPOINT
+    if load_checkpoint:
+        flags |= ACT_LOAD_CHECKPOINT
     return struct.pack("<BB", MSG_ACTION, flags)
 
 

@@ -184,25 +184,32 @@ class $modify(BridgeBaseLayer, GJBaseGameLayer) {
         // Block for the agent's action (short timeout so a dead agent can't hang
         // the game forever; on timeout, repeat the previous input).
         std::vector<uint8_t> msg;
-        bool resetting = false, wants_geom = false;
+        uint8_t act = 0;
         if (srv->recv(msg, /*timeout_ms=*/1000) && msg.size() >= 2 &&
             msg[0] == static_cast<uint8_t>(MsgType::Action)) {
-            uint8_t act = msg[1];
+            act = msg[1];
             bridge.holding = act & ACT_HOLD;
-            resetting = act & ACT_REQUEST_RESET;
-            wants_geom = act & ACT_REQUEST_GEOM;
         }
 
-        if (resetting) {
-            pl->resetLevel();  // repositions to spawn; reply reflects spawn state
+        // Checkpoint / practice controls for segment-by-segment search.
+        if (act & ACT_PRACTICE_ON) pl->togglePracticeMode(true);
+        if (act & ACT_PLACE_CHECKPOINT) pl->markCheckpoint();
+
+        if (act & ACT_REQUEST_RESET) {
+            pl->removeAllCheckpoints();
+            pl->resetLevelFromStart();   // full restart, checkpoints cleared
+            bridge.frame = 0;
+        } else if (act & ACT_LOAD_CHECKPOINT) {
+            pl->loadLastCheckpoint();     // respawn at the last checkpoint
+            bridge.frame = 0;
         } else {
             // Apply input before the frame's physics, then step.
-            if (bridge.holding) this->m_player1->pushButton(PlayerButton::Jump);   // VERIFY
-            else this->m_player1->releaseButton(PlayerButton::Jump);               // VERIFY
+            if (bridge.holding) this->m_player1->pushButton(PlayerButton::Jump);
+            else this->m_player1->releaseButton(PlayerButton::Jump);
             GJBaseGameLayer::update(dt);
         }
 
-        if (wants_geom) sendGeometry(srv, pl);
+        if (act & ACT_REQUEST_GEOM) sendGeometry(srv, pl);
 
         StatePayload s = readState(pl);
         s.frame = bridge.frame++;

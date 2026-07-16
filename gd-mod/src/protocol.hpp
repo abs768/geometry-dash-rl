@@ -29,9 +29,12 @@ enum StateFlag : uint8_t {
 
 // Action flags (bitfield in the action byte).
 enum ActionFlag : uint8_t {
-    ACT_HOLD          = 1 << 0,
-    ACT_REQUEST_RESET = 1 << 1,
-    ACT_REQUEST_GEOM  = 1 << 2,
+    ACT_HOLD             = 1 << 0,
+    ACT_REQUEST_RESET    = 1 << 1,  // full restart from start, clear checkpoints
+    ACT_REQUEST_GEOM     = 1 << 2,
+    ACT_PRACTICE_ON      = 1 << 3,  // togglePracticeMode(true)
+    ACT_PLACE_CHECKPOINT = 1 << 4,  // markCheckpoint() at the current position
+    ACT_LOAD_CHECKPOINT  = 1 << 5,  // respawn at the last checkpoint (segment search)
 };
 
 // Gamemodes, matching PlayerObject state. Only Cube is handled in v0.
