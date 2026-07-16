@@ -15,6 +15,10 @@ input, lag-free); the agent then reproduces that run **deterministically** on
 the real game — verified `REPLAY CLEARED THE LEVEL (100%)`. Full clip:
 [`results/agent_clears_stereo_madness.mp4`](results/agent_clears_stereo_madness.mp4).
 This is learning-from-demonstration: record with `record_play.py`, then replay.
+From that same demonstration, a **behavior-cloning policy** (`train_bc.py`)
+learns the human's jump decisions at **90.7% val accuracy (jump F1 0.82)**.
+
+**📄 Full write-up:** [CASE_STUDY.md](CASE_STUDY.md) — the portfolio version.
 
 Getting the replay frame-perfect took a fixed physics timestep so it reproduces
 bit-for-bit regardless of frame timing — the GIF above is the ship section it
