@@ -1,4 +1,4 @@
-# I spent a month teaching an AI to play the real Geometry Dash
+# I tried teaching an AI to play the real Geometry Dash
 
 I don't fully remember why I decided to do this. I think I'd seen a couple of projects where people trained an AI to play Geometry Dash, and every single one of them was playing a Python remake of the game — a little clone someone wrote to be easy to plug an agent into. Which is fine, but it always felt like a bit of a cop-out. The interesting version, to me, was the one where the AI plays the *actual* game. The one on Steam. The one you and I would open and rage-quit.
 
@@ -72,13 +72,13 @@ The replay would sail through the entire first half of the level — cube, ship,
 
 Then I actually read the logs. And I noticed the game was *crashing on shutdown*.
 
-I had a background thread in my mod that I wasn't cleaning up properly. When the game closed, that thread was tearing down messily and leaving things in a slightly corrupted state — which meant every test I ran *after* that point was starting from a subtly broken baseline. The 62% wall wasn't a physics limit at all. My own crash had been quietly poisoning every experiment for hours, and I'd spent that entire time debugging the wrong layer of the stack.
+I had a background thread in my mod that I wasn't cleaning up properly. When the game closed, that thread was tearing down messily and leaving things in a slightly corrupted state — which meant every test I ran *after* that point was starting from a subtly broken baseline. The 62% wall wasn't a physics limit at all. My own crash had been quietly poisoning every experiment, and I'd been debugging the wrong layer of the stack the whole time.
 
 I fixed the crash. And here's the genuinely embarrassing part: I *still* didn't believe it would matter. I almost didn't bother re-testing. Someone I was talking through it with basically had to tell me to stop theorizing and just run it one more time on a clean launch.
 
 It cleared the whole level. 100%.
 
-The fix had been correct the entire time. The crash was the thing lying to me, and I'd spent hours arguing with the lie instead of reading the logs that were sitting right there. I think about that one a lot.
+The fix had been correct the entire time. The crash was the thing lying to me, and I'd been arguing with the lie instead of reading the logs that were sitting right there. I think about that one a lot.
 
 ## Making sure it actually "learned" something
 
@@ -110,10 +110,10 @@ A few things stuck with me more than the ML did.
 
 **Actually run the comparison instead of assuming.** The PPO-getting-stuck result is my favorite thing that came out of this, and it only showed up because I ran the experiment properly with multiple seeds instead of trusting my gut about which algorithm "should" win.
 
-**When something is consistently wrong in a way that makes no sense, suspect your setup before your theory.** I spent hours "fixing" physics when the actual problem was a crash corrupting my tests. Read the logs first. The logs were right there.
+**When something is consistently wrong in a way that makes no sense, suspect your setup before your theory.** I kept "fixing" physics when the actual problem was a crash corrupting my tests. Read the logs first. The logs were right there.
 
 **Say what your result actually is.** "Completed the level via learning from demonstration" is a true, defensible sentence. "My RL agent conquered Geometry Dash" is a sentence that dissolves the moment someone smart asks you a question about it. The honest version is less impressive for about five seconds and more impressive forever after.
 
-Does it play the real Geometry Dash, start to finish? Yes. Is it a triumphant autonomous AI that taught itself to master the game? No, and I'll be the first to tell you exactly where it stops. Somewhere in the gap between those two sentences is a project I learned a genuinely stupid amount from — mostly about debugging, honesty, and the specific feeling of arguing for three hours with a bug that was your own crash the whole time.
+Does it play the real Geometry Dash, start to finish? Yes. Is it a triumphant autonomous AI that taught itself to master the game? No, and I'll be the first to tell you exactly where it stops. Somewhere in the gap between those two sentences is a project I learned a genuinely stupid amount from — mostly about debugging, honesty, and the specific feeling of arguing with a bug that turns out to be your own crash the whole time.
 
 The code, all the clips, the algorithm comparison, and a blunt list of what still doesn't work are on GitHub: **[github.com/abs768/geometry-dash-rl](https://github.com/abs768/geometry-dash-rl)**. If you want to poke at it or tell me what I did wrong, please do.

@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>I spent a month teaching an AI to play the real Geometry Dash</title>
-<meta name="description" content="Training in a fast simulator, moving the agent onto the retail game, and the dumb crash that made my results lie to me for hours.">
+<title>I tried teaching an AI to play the real Geometry Dash</title>
+<meta name="description" content="Training in a fast simulator, moving the agent onto the retail game, and the dumb crash that made my results lie to me.">
 <meta name="author" content="abs768">
 <meta property="og:type" content="article">
-<meta property="og:title" content="I spent a month teaching an AI to play the real Geometry Dash">
+<meta property="og:title" content="I tried teaching an AI to play the real Geometry Dash">
 <meta property="og:description" content="A reinforcement-learning + sim-to-real project on the actual Steam game — the dead ends, a surprising algorithm result, one really dumb bug, and a hidden 8% error in my own physics.">
 <meta property="og:image" content="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/agent_clears_stereo_madness.gif">
 <style>
@@ -45,7 +45,7 @@
 </nav>
 <article>
 
-<h1>I spent a month teaching an AI to play the real Geometry Dash</h1>
+<h1>I tried teaching an AI to play the real Geometry Dash</h1>
 
 <p>I don't fully remember why I decided to do this. I think I'd seen a couple of projects where people trained an AI to play Geometry Dash, and every single one of them was playing a Python remake of the game — a little clone someone wrote to be easy to plug an agent into. Which is fine, but it always felt like a bit of a cop-out. The interesting version, to me, was the one where the AI plays the <em>actual</em> game. The one on Steam. The one you and I would open and rage-quit.</p>
 
@@ -108,10 +108,10 @@
 <p>This is the section I'd normally quietly leave out of a write-up, which is exactly why I'm putting it in.</p>
 <p>The replay would sail through the entire first half of the level — cube, ship, the works — and then die at 62%. Every single time. Same spot. So I did what you do: I assumed my input-replaying code was subtly wrong. I rewrote the way the mod presses the button. I tried three different ways of feeding the inputs back in. I forced the physics to run on a fixed timestep so nothing could drift out of sync. Every attempt meant rebuilding the mod and relaunching the game, and every attempt died at 62%. I became convinced it was some deep, unfixable timing quirk in the game's physics engine, and I was about ready to write it up as "reproduces 62%, close enough" and move on.</p>
 <p>Then I actually read the logs. And I noticed the game was <em>crashing on shutdown</em>.</p>
-<p>I had a background thread in my mod that I wasn't cleaning up properly. When the game closed, that thread was tearing down messily and leaving things in a slightly corrupted state — which meant every test I ran <em>after</em> that point was starting from a subtly broken baseline. The 62% wall wasn't a physics limit at all. My own crash had been quietly poisoning every experiment for hours, and I'd spent that entire time debugging the wrong layer of the stack.</p>
+<p>I had a background thread in my mod that I wasn't cleaning up properly. When the game closed, that thread was tearing down messily and leaving things in a slightly corrupted state — which meant every test I ran <em>after</em> that point was starting from a subtly broken baseline. The 62% wall wasn't a physics limit at all. My own crash had been quietly poisoning every experiment, and I'd been debugging the wrong layer of the stack the whole time.</p>
 <p>I fixed the crash. And here's the genuinely embarrassing part: I <em>still</em> didn't believe it would matter. I almost didn't bother re-testing. Someone I was talking through it with basically had to tell me to stop theorizing and just run it one more time on a clean launch.</p>
 <p>It cleared the whole level. 100%.</p>
-<p>The fix had been correct the entire time. The crash was the thing lying to me, and I'd spent hours arguing with the lie instead of reading the logs that were sitting right there. I think about that one a lot.</p>
+<p>The fix had been correct the entire time. The crash was the thing lying to me, and I'd been arguing with the lie instead of reading the logs that were sitting right there. I think about that one a lot.</p>
 
 <h2>Making sure it actually "learned" something</h2>
 <p>I want to be really clear about what that 100% clear is, because it's the kind of result that's easy to oversell and I'd rather not.</p>
@@ -129,9 +129,9 @@
 <h2>What I'd tell myself if I started over</h2>
 <p><strong>Building the fast simulator first was the best decision by a mile.</strong> Almost none of this would have been practical if every experiment took a day. If there's a version of your problem that runs a thousand times faster, build that version first, even if it's fake.</p>
 <p><strong>Actually run the comparison instead of assuming.</strong> The PPO-getting-stuck result is my favorite thing that came out of this, and it only showed up because I ran the experiment properly with multiple seeds instead of trusting my gut about which algorithm "should" win.</p>
-<p><strong>When something is consistently wrong in a way that makes no sense, suspect your setup before your theory.</strong> I spent hours "fixing" physics when the actual problem was a crash corrupting my tests. Read the logs first. The logs were right there.</p>
+<p><strong>When something is consistently wrong in a way that makes no sense, suspect your setup before your theory.</strong> I kept "fixing" physics when the actual problem was a crash corrupting my tests. Read the logs first. The logs were right there.</p>
 <p><strong>Say what your result actually is.</strong> "Completed the level via learning from demonstration" is a true, defensible sentence. "My RL agent conquered Geometry Dash" is a sentence that dissolves the moment someone smart asks you a question about it. The honest version is less impressive for about five seconds and more impressive forever after.</p>
-<p>Does it play the real Geometry Dash, start to finish? Yes. Is it a triumphant autonomous AI that taught itself to master the game? No, and I'll be the first to tell you exactly where it stops. Somewhere in the gap between those two sentences is a project I learned a genuinely stupid amount from — mostly about debugging, honesty, and the specific feeling of arguing for three hours with a bug that was your own crash the whole time.</p>
+<p>Does it play the real Geometry Dash, start to finish? Yes. Is it a triumphant autonomous AI that taught itself to master the game? No, and I'll be the first to tell you exactly where it stops. Somewhere in the gap between those two sentences is a project I learned a genuinely stupid amount from — mostly about debugging, honesty, and the specific feeling of arguing with a bug that turns out to be your own crash the whole time.</p>
 
 <p>The code, all the clips, the algorithm comparison, and a blunt list of what still doesn't work are on GitHub: <a href="https://github.com/abs768/geometry-dash-rl">github.com/abs768/geometry-dash-rl</a>. If you want to poke at it or tell me what I did wrong, please do.</p>
 
