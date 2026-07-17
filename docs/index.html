@@ -100,7 +100,7 @@
 </ul>
 
 <p>The code, all the clips, the algorithm comparison, and a blunt list of what still doesn't work are on GitHub: <a href="https://github.com/abs768/geometry-dash-rl">github.com/abs768/geometry-dash-rl</a>.</p>
-<p>There's still a bunch left to do — the sim's physics for the non-cube modes are rough, sim-to-real transfer still dies early because I haven't calibrated the jump arc, and I never got the autonomous agent past the ship section. But it does play the real game start to finish, and I learned more about debugging and being honest about results than I did about RL, which is probably the most useful thing I can say about it.</p>
+<p>There's still a bunch left to do — the sim's physics for the non-cube modes are rough, and I never got the autonomous agent past the ship section. I did go back and calibrate the cube jump against the real trajectories from my recording, and it turned out my sim was undershooting the real jump height by about 8%, which is exactly the kind of thing that quietly wrecks sim-to-real transfer — so that's fixed now, though closing the transfer gap fully needs more than just the jump arc. But it does play the real game start to finish, and I learned more about debugging and being honest about results than I did about RL, which is probably the most useful thing I can say about it.</p>
 <p>If you have questions or want to poke at the code, feel free.</p>
 
 <footer>

@@ -145,8 +145,9 @@ python train_bc.py --rec recordings/run.json         # behavior cloning on the d
 | Reward | `+Δx` per step (blocks), `−10` on death, `+10` on completion |
 | Episode end | death, completion, or step cap |
 
-Physics constants (`gdrl/sim/physics.py`) are community-derived approximations
-(~2.1-block jump apex, ~10.4 blocks/s at 1×). Cube mode is calibrated; the other
+Cube-mode physics (`gdrl/sim/physics.py`) are **calibrated against logged real
+trajectories** — jump apex 2.128 blocks over 25 frames, 10.39 blocks/s at 1× —
+fit to the sim's discrete integration, not the textbook formula. The other
 gamemodes are approximate (see below).
 
 ### Gamemodes
@@ -174,9 +175,12 @@ I'd rather state these up front:
   not an autonomous RL agent solving the level.** The behavior-cloning policy
   *learns* the input mapping (90.7% val acc) but, like BC on a single
   frame-perfect level, drifts — so replay is used for the exact clear.
-- **Sim-to-real transfer dies at ~11%** because the sim jump arc isn't yet
-  calibrated to the real game frame-for-frame. Autonomous checkpoint search
-  reaches ~35% (the cube section) before the ship section's continuous control.
+- **Sim-to-real transfer dies at ~11%.** I've since calibrated the cube jump
+  against logged real trajectories (the old constants undershot the real apex
+  by ~8%), but closing the transfer gap fully needs more than the jump arc
+  alone, and I haven't re-run the on-real transfer since. Autonomous checkpoint
+  search reaches ~35% (the cube section) before the ship section's continuous
+  control.
 - **Non-cube physics are approximate** (chosen for plausible motion, pending
   calibration against logged real trajectories); robot/spider are first-pass.
 - **The mod targets macOS + GD 2.2081** (Geode's supported build). Field reads

@@ -99,8 +99,10 @@ credible part:
   the exact clear.
 - The **non-cube physics are approximate** (calibration against real
   trajectories is future work); robot/spider are first-pass.
-- Sim-to-real transfer dies at ~11% because the sim jump arc isn't yet
-  calibrated to the real game frame-for-frame.
+- Sim-to-real transfer dies at ~11%. I've since calibrated the **cube** jump
+  against logged real trajectories (the old constants undershot the real apex by
+  ~8%), but the full transfer gap needs more than the jump arc, and I haven't
+  re-run the on-real transfer since.
 
 ## What I learned
 

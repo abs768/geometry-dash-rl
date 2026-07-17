@@ -1,22 +1,28 @@
 """Cube-mode physics constants, in block units (1 block = 30 GD units).
 
-These are community-derived approximations chosen to reproduce the two
-observable invariants of the cube at 1x speed: a jump apex of ~2.1 blocks
-reached in ~0.21 s, and horizontal travel of ~10.38 blocks/s. They are the
-calibration surface for sim-to-real transfer — once the Geode mod can log
-real trajectories, fit these constants to match before trusting transfer.
+Calibrated against real trajectories logged from the game. 18 flat-ground cube
+jumps from a recorded playthrough give a jump apex of 2.128 blocks over an
+airtime of 25 frames (0.417 s) and a horizontal speed of 10.39 blocks/s.
+JUMP_VELOCITY and GRAVITY are then fit *to the sim's discrete integration* (not
+the textbook v^2/2g, which the semi-implicit Euler step undershoots) so the sim
+jump reproduces the real apex and airtime exactly.
+
+Note: the previous community values (20.0 / 94.0) actually undershot the real
+apex by ~8% in the discrete sim (2.128 -> 1.96 blocks) — a real miscalibration
+that would mistime sim-to-real transfer.
 """
 
 # Simulation tick. GD's engine runs physics at 240 Hz internally; 60 Hz is
 # enough for cube mode and keeps episodes short for RL.
 DT = 1.0 / 60.0
 
-# Horizontal speed at 1x ("normal") speed, blocks/s.
-SPEED_1X = 10.3761
+# Horizontal speed at 1x ("normal") speed, blocks/s (measured: 10.389).
+SPEED_1X = 10.389
 
-# Vertical physics, blocks/s and blocks/s^2.
-JUMP_VELOCITY = 20.0
-GRAVITY = 94.0
+# Vertical physics, blocks/s and blocks/s^2. Fit so the discrete sim jump hits
+# apex 2.128 blocks in 25 frames, matching the logged real cube jump.
+JUMP_VELOCITY = 21.80
+GRAVITY = 103.0
 TERMINAL_VELOCITY = -26.0
 
 # Player hitbox is one block. Death-on-side-collision uses the full box;
