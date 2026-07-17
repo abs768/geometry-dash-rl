@@ -3,110 +3,352 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>I tried to get an AI to play the real Geometry Dash</title>
-<meta name="description" content="Getting a reinforcement learning agent to play the actual Geometry Dash on Steam — the dead ends, a surprising algorithm result, and one really dumb bug.">
+<title>geometry-dash-rl — teaching an AI to play the real Geometry Dash</title>
+<meta name="description" content="A reinforcement-learning + sim-to-real project: train agents in a fast headless simulator, deploy them onto the retail Geometry Dash through a custom C++ mod, and clear a full official level.">
 <meta name="author" content="abs768">
-<meta property="og:type" content="article">
-<meta property="og:title" content="I tried to get an AI to play the real Geometry Dash">
-<meta property="og:description" content="Training in a fast simulator, moving it onto the retail game, and the dumb crash that made my results lie to me for hours.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Teaching an AI to play the real Geometry Dash">
+<meta property="og:description" content="Fast headless simulator → RL agents (DQN / PPO / GA) → a Geode C++ mod → the retail game. A controlled algorithm comparison, sim-to-real transfer, and a full-level clear.">
 <meta property="og:image" content="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/agent_clears_stereo_madness.gif">
 <style>
-  :root { color-scheme: light dark; }
-  body {
-    font: 20px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Georgia, serif;
-    max-width: 720px; margin: 0 auto; padding: 48px 20px 96px; color: #1a1a1a;
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #14161a;
+    --muted: #5b6470;
+    --card: #f6f7f9;
+    --border: rgba(20,22,26,.10);
+    --accent: #0a58ca;
+    --accent2: #12b981;
+    --hero1: #0b1020;
+    --hero2: #16203a;
+    --maxw: 1080px;
   }
-  @media (prefers-color-scheme: dark) { body { background:#0e0e12; color:#e6e6ea; } a { color:#6ca8ff; } }
-  h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 .6em; letter-spacing: -.02em; }
-  h2 { font-size: 1.5rem; margin: 2em 0 .5em; letter-spacing: -.01em; }
-  p { margin: 0 0 1.1em; }
-  figure { margin: 2em 0; }
-  figure img { width: 100%; border-radius: 8px; display: block; }
-  figcaption { font-size: .9rem; color: #888; text-align: center; margin-top: .6em; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em;
-    background: rgba(127,127,127,.15); padding: .1em .35em; border-radius: 4px; }
-  ul { padding-left: 1.3em; }
-  li { margin: .5em 0; }
-  a { color: #0a58ca; }
-  footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid rgba(127,127,127,.3);
-    font-size: .95rem; color: #888; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0d12; --fg: #e8eaee; --muted: #99a1ad; --card: #14171e;
+      --border: rgba(255,255,255,.09); --accent: #6ca8ff; --accent2: #34d39e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 22px; }
+
+  /* nav */
+  nav.top {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: saturate(180%) blur(12px);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.top .wrap { display: flex; align-items: center; gap: 20px; height: 58px; }
+  nav.top .brand { font-weight: 700; letter-spacing: -.02em; margin-right: auto; }
+  nav.top .brand span { color: var(--accent2); }
+  nav.top a { color: var(--muted); text-decoration: none; font-size: .95rem; }
+  nav.top a:hover { color: var(--fg); }
+  nav.top .cta { color: var(--fg); border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 8px; }
+  nav.top .links { display: flex; gap: 20px; align-items: center; }
+  @media (max-width: 720px) { nav.top .links .hideable { display: none; } }
+
+  /* hero */
+  header.hero {
+    background: radial-gradient(1200px 500px at 70% -10%, rgba(52,211,158,.16), transparent 60%),
+                linear-gradient(160deg, var(--hero1), var(--hero2));
+    color: #eef2f8; border-bottom: 1px solid var(--border);
+    padding: 72px 0 64px;
+  }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 44px; align-items: center; }
+  @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; gap: 30px; } }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .badge { font-size: .78rem; padding: 4px 10px; border-radius: 999px;
+    background: rgba(255,255,255,.09); color: #cdd6e4; border: 1px solid rgba(255,255,255,.12); }
+  h1 { font-size: clamp(2rem, 4.4vw, 3rem); line-height: 1.08; letter-spacing: -.03em;
+    margin: 0 0 .5em; color: #fff; }
+  .hero p.lead { font-size: 1.12rem; color: #c3ccd9; margin: 0 0 1.6em; max-width: 34em; }
+  .hero .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+    padding: 11px 20px; border-radius: 10px; font-weight: 600; font-size: .96rem; }
+  .btn.primary { background: var(--accent2); color: #04150e; }
+  .btn.ghost { background: rgba(255,255,255,.06); color: #eef2f8; border: 1px solid rgba(255,255,255,.16); }
+  .btn:hover { transform: translateY(-1px); }
+  .hero figure { margin: 0; }
+  .hero figure img { width: 100%; border-radius: 14px; display: block;
+    box-shadow: 0 24px 60px rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.1); }
+  .hero figcaption { color: #9aa6ba; font-size: .82rem; text-align: center; margin-top: .8em; }
+
+  /* sections */
+  section { padding: 64px 0; border-bottom: 1px solid var(--border); }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .74rem;
+    font-weight: 700; color: var(--accent2); margin: 0 0 .5em; }
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -.02em; margin: 0 0 .4em; }
+  section > .wrap > p.sub { color: var(--muted); max-width: 44em; margin: 0 0 2em; }
+
+  /* claim cards */
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  @media (max-width: 720px) { .cards { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px 22px 20px; }
+  .card .k { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; color: var(--accent2); }
+  .card h3 { margin: .3em 0 .3em; font-size: 1.06rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .93rem; }
+
+  /* comparison */
+  .two { display: grid; grid-template-columns: 1.15fr .85fr; gap: 34px; align-items: center; }
+  @media (max-width: 820px) { .two { grid-template-columns: 1fr; } }
+  .two img { width: 100%; border-radius: 12px; border: 1px solid var(--border); display: block; background:#fff; }
+  table { width: 100%; border-collapse: collapse; font-size: .93rem; margin: 0 0 1.2em; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  td.c, th.c { text-align: center; }
+  .tag-good { color: var(--accent2); font-weight: 700; }
+  .tag-bad { color: #e0803a; font-weight: 700; }
+  .finding { background: var(--card); border-left: 3px solid var(--accent2);
+    padding: 14px 18px; border-radius: 0 10px 10px 0; color: var(--fg); font-size: .95rem; }
+
+  /* demo grid */
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 820px) { .gallery { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .gallery { grid-template-columns: 1fr; } }
+  .shot { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .shot img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; background:#0b0d12; }
+  .shot .cap { padding: 10px 12px; font-size: .84rem; color: var(--muted); }
+  .shot .cap b { color: var(--fg); font-weight: 600; }
+
+  /* pipeline */
+  .pipe { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  .stage { flex: 1 1 160px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; }
+  .stage .n { font-size: .72rem; color: var(--accent2); font-weight: 700; letter-spacing:.08em; }
+  .stage b { display: block; margin: 4px 0 3px; font-size: .98rem; }
+  .stage span { color: var(--muted); font-size: .85rem; }
+  .arrow { align-self: center; color: var(--muted); font-size: 1.2rem; }
+  @media (max-width: 720px) { .arrow { display: none; } }
+
+  /* honesty */
+  .honest { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 26px; }
+  .honest ul { margin: 0; padding-left: 1.2em; }
+  .honest li { margin: .55em 0; color: var(--fg); }
+  .honest li b { color: var(--fg); }
+
+  /* stack + footer */
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 12px; font-size: .88rem; color: var(--fg); }
+  footer { padding: 40px 0 64px; color: var(--muted); font-size: .92rem; }
+  footer a { color: var(--muted); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
 </style>
 </head>
 <body>
-<article>
 
-<h1>I tried to get an AI to play the real Geometry Dash</h1>
+<nav class="top">
+  <div class="wrap">
+    <div class="brand">geometry-dash<span>-rl</span></div>
+    <div class="links">
+      <a class="hideable" href="#results">Results</a>
+      <a class="hideable" href="#demos">Demos</a>
+      <a class="hideable" href="#how">How it works</a>
+      <a href="blog.html">Blog</a>
+      <a class="cta" href="https://github.com/abs768/geometry-dash-rl">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
 
-<p>I spent a while getting a reinforcement learning agent to play Geometry Dash — the actual game on Steam, not a Python clone of it. It works now, but there were a lot of dead ends and one genuinely dumb bug along the way, so I figured I'd just write down how it went.</p>
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="badges">
+        <span class="badge">Reinforcement Learning</span>
+        <span class="badge">Sim-to-Real</span>
+        <span class="badge">Python · PyTorch</span>
+        <span class="badge">C++ · Geode</span>
+      </div>
+      <h1>Teaching an AI to play the <em>real</em> Geometry Dash</h1>
+      <p class="lead">Not a clone — the actual retail game on Steam. I train agents in a
+        headless simulator running <b>&gt;2,000× real time</b>, then deploy them onto
+        Geometry Dash 2.2 through a custom C++ mod. Along the way: a controlled
+        DQN/PPO/GA comparison, sim-to-real transfer, and a full official level cleared.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/abs768/geometry-dash-rl">View the code</a>
+        <a class="btn ghost" href="blog.html">Read the write-up</a>
+        <a class="btn ghost" href="#results">See results ↓</a>
+      </div>
+    </div>
+    <figure>
+      <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/agent_clears_stereo_madness.gif"
+           alt="An agent flying the ship section of Stereo Madness on the retail game" loading="lazy">
+      <figcaption>An agent clearing the ship section of the official Stereo Madness on retail GD 2.2.</figcaption>
+    </figure>
+  </div>
+</header>
 
-<figure>
-  <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/agent_clears_stereo_madness.gif" alt="The agent flying the ship section of Stereo Madness">
-</figure>
+<section id="results">
+  <div class="wrap">
+    <p class="eyebrow">What's in the project</p>
+    <h2>Four results — and exactly what each one means</h2>
+    <p class="sub">I care more about being precise than impressive. Every claim below says what it
+      actually is, including where it stops.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="k">DQN · PPO · GA</div>
+        <h3>A controlled algorithm comparison</h3>
+        <p>Same observation, reward, and levels; three seeds each. A reproducible finding: on-policy
+          PPO gets trapped in a local optimum where value-based and evolutionary methods don't.</p>
+      </div>
+      <div class="card">
+        <div class="k">~11% → 35%</div>
+        <h3>Sim-to-real transfer</h3>
+        <p>A policy trained <i>only in the sim</i> drives the retail game via the mod (~11%); a
+          checkpoint search on the real game clears the full cube section (~35%).</p>
+      </div>
+      <div class="card">
+        <div class="k">100%</div>
+        <h3>Full-level clear</h3>
+        <p>The complete official level — via <b>learning from demonstration</b>: a recorded human
+          run replayed deterministically on the real game. Not autonomous RL, and I say so.</p>
+      </div>
+      <div class="card">
+        <div class="k">90.7%</div>
+        <h3>Behavior cloning</h3>
+        <p>A network trained on that demonstration predicts the human's jumps at 90.7% validation
+          accuracy (jump F1 0.82) — a genuinely learned imitation policy.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-<p>If you haven't played Geometry Dash: you control a little square that runs to the right on its own, and you press one button to jump. Touch anything and you die instantly. That's basically the whole game. Easy to describe, not easy to do.</p>
+<section id="comparison">
+  <div class="wrap">
+    <p class="eyebrow">Result #1</p>
+    <h2>PPO isn't always the answer</h2>
+    <div class="two">
+      <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/comparison.png"
+           alt="DQN vs PPO vs GA comparison chart" loading="lazy">
+      <div>
+        <table>
+          <tr><th>Algorithm</th><th class="c">spikes_easy</th><th class="c">blocks_and_spikes</th><th class="c">seeds</th></tr>
+          <tr><td>DQN (double)</td><td class="c">100%</td><td class="c">100%</td><td class="c tag-good">6/6</td></tr>
+          <tr><td>Genetic Algorithm</td><td class="c">100%</td><td class="c">100%</td><td class="c tag-good">6/6</td></tr>
+          <tr><td>PPO</td><td class="c">100%</td><td class="c">48%</td><td class="c tag-bad">4/6</td></tr>
+        </table>
+        <div class="finding"><b>PPO gets trapped</b> at the first death-risky jump — free progress
+          up to it, a −10 penalty for the risk — on the harder level. 6M steps doesn't rescue it.
+          A single-algorithm project can't surface this.</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-<h2>Why I didn't just train in the game</h2>
-<p>Most projects I found do the same thing — they hook an RL agent straight into the running game and let it learn by playing. That works, but the game runs at 60 frames per second and won't go faster, and RL needs a <em>lot</em> of frames to learn anything (like millions). At 60 fps that's days of your computer just playing Geometry Dash over and over.</p>
-<p>That felt like the wrong thing to be waiting on, so I wrote a small physics simulator instead — just the movement, no graphics or sound. Because it's so stripped down it runs a couple thousand times faster than the real game, so training takes seconds instead of days. The plan was to train in the fast fake version and then check whether it still works on the real one.</p>
-<p>That last part — whether it survives on the real game — turned out to be the actual hard problem.</p>
+<section id="demos">
+  <div class="wrap">
+    <p class="eyebrow">Results #2–4</p>
+    <h2>Watch it run</h2>
+    <p class="sub">The sim renders shareable clips, and the mod records footage straight off the
+      retail game. A few of them:</p>
+    <div class="gallery">
+      <div class="shot">
+        <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/real_stereo_clip.gif" alt="Sim-trained policy on the real game" loading="lazy">
+        <div class="cap"><b>Sim policy, real game.</b> Trained only in the sim; dies ~11% at a physics-gap obstacle.</div>
+      </div>
+      <div class="shot">
+        <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/stereo_open.gif" alt="GA clearing the imported opening in the sim" loading="lazy">
+        <div class="cap"><b>GA in the sim.</b> Trained on the imported Stereo Madness opening.</div>
+      </div>
+      <div class="shot">
+        <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/ship_gauntlet.gif" alt="Ship gamemode" loading="lazy">
+        <div class="cap"><b>Ship mode.</b> Hold-to-thrust continuous control.</div>
+      </div>
+      <div class="shot">
+        <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/robot_leap.gif" alt="Robot gamemode" loading="lazy">
+        <div class="cap"><b>Robot mode.</b> Variable-height jump — hold controls height.</div>
+      </div>
+      <div class="shot">
+        <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/spider_switch.gif" alt="Spider gamemode" loading="lazy">
+        <div class="cap"><b>Spider mode.</b> Tap teleports to the opposite surface.</div>
+      </div>
+      <div class="shot">
+        <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/agent_clears_stereo_madness.gif" alt="The full clear" loading="lazy">
+        <div class="cap"><b>The full clear.</b> Learning from demonstration, 100% on the retail game.</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-<h2>Comparing a few algorithms first</h2>
-<p>Before touching the real game I used the sim to compare three approaches on the same levels: DQN, PPO, and a genetic algorithm. I assumed PPO would win because it's the one everyone reaches for. It didn't.</p>
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow">Architecture</p>
+    <h2>How it works</h2>
+    <p class="sub">The retail game is the evaluation target, not the training loop — that's the whole
+      idea. Training happens in a simulator thousands of times faster than real time.</p>
+    <div class="pipe">
+      <div class="stage"><div class="n">01</div><b>Headless sim</b><span>7 gamemodes, slopes, portals. &gt;2,000× real time on one CPU core.</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="n">02</div><b>RL agents</b><span>DQN (double), PPO (GAE, vectorized), and a genetic algorithm.</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="n">03</div><b>Python bridge</b><span>Shared observation builder — the sim and real game look identical to the policy.</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="n">04</div><b>Geode C++ mod</b><span>Hooks the game loop, streams state and injects input over a binary socket.</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="n">05</div><b>Retail game</b><span>Geometry Dash 2.2 on Steam — the real evaluation target.</span></div>
+    </div>
+  </div>
+</section>
 
-<figure>
-  <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/comparison.png" alt="DQN vs PPO vs GA comparison chart">
-</figure>
+<section id="honest">
+  <div class="wrap">
+    <p class="eyebrow">The part I won't hide</p>
+    <h2>Honest scope &amp; limitations</h2>
+    <p class="sub">These are the most credible thing in the whole project, so they go up front, not in a footnote.</p>
+    <div class="honest">
+      <ul>
+        <li><b>The guaranteed full clear is deterministic replay of a human demonstration</b>, not an
+          autonomous RL agent solving the level. The behavior-cloning policy learns the input mapping
+          (90.7%) but drifts on a single frame-perfect level — so replay is used for the exact clear.</li>
+        <li><b>Sim-to-real transfer dies at ~11%.</b> I've since calibrated the cube jump against logged
+          real trajectories (the old constants undershot the real apex by ~8%), but closing the gap
+          fully needs more than the jump arc alone.</li>
+        <li><b>Non-cube physics are approximate</b> — chosen for plausible motion, pending calibration
+          against logged trajectories; robot and spider are first-pass.</li>
+        <li><b>The mod targets macOS + GD 2.2081</b> (Geode's supported build); uncertain field reads
+          are marked <code>VERIFY</code> in the source.</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
-<p>On the harder level PPO kept getting stuck in the exact same spot every time. The reason is kind of interesting: you get free progress up to the first risky jump, and dying costs you points. So PPO learned "just take the free progress and don't risk the jump" and refused to try anything else. I threw 6 million training steps at it and it still wouldn't budge. Meanwhile DQN and the genetic algorithm both cleared every level on every random seed, and the genetic algorithm was actually the fastest of the three. That makes sense once you notice the levels are deterministic — same inputs always give the same run — so an approach that basically memorizes a good input sequence does really well here.</p>
-<p>Not a groundbreaking result, but it was a good reminder that the "best" algorithm depends entirely on the problem, not on what's trendy.</p>
-
-<h2>Getting it onto the real game</h2>
-<p>To connect my Python agents to the actual game I had to write a mod in C++ using Geode (the Geometry Dash modding framework). The mod reads the cube's position and velocity every frame and injects the jump input, and sends all of that back and forth to Python over a local socket.</p>
-<p>The first time it connected and I watched a policy that had only ever seen my fake sim start driving the real cube and jumping real spikes — that was easily the best moment of the whole thing.</p>
-<p>It also died at 11%.</p>
-
-<figure>
-  <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/real_stereo_clip.gif" alt="A sim-trained policy playing the real game">
-</figure>
-
-<p>Which, honestly, is the whole point. My sim's physics are only an approximation of the real game's — close, but not exactly right. The agent had learned jump timings tuned to my slightly-wrong gravity, and over enough obstacles that small error adds up until it dies. This is the "sim-to-real gap" everyone talks about, and there's no clever trick that makes it go away. You just have to measure the difference and fix your sim.</p>
-
-<h2>Trying to be clever about it</h2>
-<p>11% wasn't great, so I tried a different angle. Since the levels are deterministic, beating one is really just finding an input sequence that survives. And Geometry Dash has practice mode, where you can drop checkpoints and respawn at them instead of the start.</p>
-<p>So I wrote a search that runs on the real game: from the last checkpoint, try some jump patterns, and when one survives a stretch, drop a checkpoint there and search the next stretch. Each attempt only replays a few seconds instead of the whole level. This worked pretty well — it slowly pushed forward and eventually got to about 35%.</p>
-<p>Then it hit the ship section and stopped cold. In the ship parts you hold the button to fly instead of jumping, threading through spikes above and below. My "try different jump timings" search had no idea what to do with continuous flying, so it just got stuck.</p>
-
-<h2>Just showing it how</h2>
-<p>At this point I stopped trying to be clever. If the hard part was the ship section and <em>I</em> can fly the ship section, why not just let it learn from me?</p>
-<p>So I added a record mode to the mod. This one's passive — the game runs at full normal speed and the mod just watches my inputs each frame instead of taking over. (Getting that right took a couple tries; my first version paused the game to wait for my program every frame, which made it laggy and impossible to play.) I'd play the level myself, once, and it records exactly what I pressed on every frame. Then, because the game is deterministic, I can feed those inputs back and the agent reproduces my run.</p>
-<p>Nice and simple. It kept dying at 62%.</p>
-
-<h2>The dumb bug</h2>
-<p>This is the part I'd usually leave out, which is exactly why I'm including it.</p>
-<p>The replay would go perfectly through the whole first half — cube, ship, everything — and then die at 62% every single time. I tried three different ways of feeding the inputs back in. I rewrote how the mod presses the button. I forced a fixed physics timestep so it couldn't drift. Every fix meant rebuilding the mod and relaunching the game, and it kept dying in the same place. I was pretty sure it was some deep timing problem in the game's physics and was about ready to give up and call it "reproduces 62%."</p>
-<p>Then I actually read the logs and noticed the game was <em>crashing on shutdown</em>. My mod had a background thread I wasn't cleaning up properly, and it was leaving the game in a slightly broken state — so every test I ran afterward was starting from corrupted state. The 62% wasn't a physics limit. My own crash was quietly messing up the results.</p>
-<p>I fixed the crash. And here's the embarrassing part: I still didn't think it would matter and almost didn't retry. Someone I was working through it with told me to just run it once more on a clean launch. It cleared the whole level, 100%. The fix had been right the entire time — the crash was the thing lying to me. I'd spent hours debugging the wrong layer.</p>
-
-<h2>Making it actually "learned"</h2>
-<p>I want to be clear about what that clear is, because it's easy to oversell. Replaying a recorded run is a systems thing — it proves the mod and the determinism work — but it's <em>not</em> an RL agent figuring out the level on its own. It's playback.</p>
-<p>So I took the recording (game state + what I pressed, every frame) and trained a small network to predict "would a human jump here?" from the game state. That's behavior cloning, and it got to about 90.7% accuracy on frames it hadn't seen. It's a genuinely learned policy that imitates how I play. It also drifts if you let it drive the whole level by itself, which is the known weakness of behavior cloning on a single frame-perfect task — one wrong frame and the mistakes pile up. So the guaranteed clear still uses the replay; the learned policy is more of an "okay, it did learn something" companion. I'd rather be straight about that than pretend it solved the level on its own.</p>
-
-<h2>Stuff I'd tell myself starting over</h2>
-<ul>
-  <li>Building the fast sim was the best decision by far. Almost none of the ML would've been practical if every experiment took days instead of seconds.</li>
-  <li>Actually run the comparison instead of assuming. The PPO-getting-stuck thing is my favorite part and it only showed up because I ran it with proper seeds.</li>
-  <li>When something is consistently wrong in a way that makes no sense, suspect your setup before your theory. I spent hours "fixing" physics when the real problem was a crash.</li>
-  <li>Say what your result actually is. "Completed the level via learning from demonstration" is honest. "My RL agent beat Geometry Dash" is the kind of sentence that falls apart the moment someone asks a follow-up question.</li>
-</ul>
-
-<p>The code, all the clips, the algorithm comparison, and a blunt list of what still doesn't work are on GitHub: <a href="https://github.com/abs768/geometry-dash-rl">github.com/abs768/geometry-dash-rl</a>.</p>
-<p>There's still a bunch left to do — the sim's physics for the non-cube modes are rough, and I never got the autonomous agent past the ship section. I did go back and calibrate the cube jump against the real trajectories from my recording, and it turned out my sim was undershooting the real jump height by about 8%, which is exactly the kind of thing that quietly wrecks sim-to-real transfer — so that's fixed now, though closing the transfer gap fully needs more than just the jump arc. But it does play the real game start to finish, and I learned more about debugging and being honest about results than I did about RL, which is probably the most useful thing I can say about it.</p>
-<p>If you have questions or want to poke at the code, feel free.</p>
+<section id="stack">
+  <div class="wrap">
+    <p class="eyebrow">Built with</p>
+    <h2>Tech stack</h2>
+    <div class="stack">
+      <span class="chip">Python</span>
+      <span class="chip">PyTorch</span>
+      <span class="chip">Gymnasium</span>
+      <span class="chip">NumPy</span>
+      <span class="chip">C++20</span>
+      <span class="chip">Geode SDK</span>
+      <span class="chip">POSIX sockets</span>
+      <span class="chip">custom binary protocol</span>
+      <span class="chip">matplotlib · ffmpeg</span>
+      <span class="chip">41 tests</span>
+    </div>
+  </div>
+</section>
 
 <footer>
-  <a href="https://github.com/abs768/geometry-dash-rl">github.com/abs768/geometry-dash-rl</a>
+  <div class="wrap">
+    <div>Built by <a href="https://github.com/abs768">abs768</a> · code, tests, and all footage on
+      <a href="https://github.com/abs768/geometry-dash-rl">GitHub</a>.</div>
+    <div><a href="blog.html">Read the write-up</a> · <a href="https://github.com/abs768/geometry-dash-rl/blob/main/CASE_STUDY.md">Case study</a></div>
+  </div>
 </footer>
 
-</article>
 </body>
 </html>
