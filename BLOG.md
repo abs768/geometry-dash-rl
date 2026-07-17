@@ -1,102 +1,84 @@
-# I taught an AI to play the real Geometry Dash — here's everything that went wrong first
+# I tried to get an AI to play the real Geometry Dash
 
-> The clean version of this story is "I built an RL agent that beats Geometry Dash." The honest version is more interesting: my agent died at 11%, got stuck at 35%, and I spent three hours fighting a bug that was silently sabotaging every run. This is the honest version.
+I spent a while getting a reinforcement learning agent to play Geometry Dash — the actual game on Steam, not a Python clone of it. It works now, but there were a lot of dead ends and one genuinely dumb bug along the way, so I figured I'd just write down how it went.
 
-*(Cover image: the `agent_clears_stereo_madness.gif` clip — the green ship weaving through the level.)*
+*(Image: agent_clears_stereo_madness.gif)*
 
-If you've never played Geometry Dash, here's all you need to know: you control a little square that moves right on its own, and you press one button to jump. Touch anything and you instantly die. The whole game is timing. It looks trivial and it is absolutely not.
+If you haven't played Geometry Dash: you control a little square that runs to the right on its own, and you press one button to jump. Touch anything and you die instantly. That's basically the whole game. Easy to describe, not easy to do.
 
-I wanted to see if I could get a reinforcement-learning agent to play it — and not some Python re-creation of the game, the *actual* game you buy on Steam. That "actual game" part is where things got interesting.
+## Why I didn't just train in the game
 
-## The obvious approach is a trap
+Most projects I found do the same thing — they hook an RL agent straight into the running game and let it learn by playing. That works, but the game runs at 60 frames per second and won't go faster, and RL needs a *lot* of frames to learn anything (like millions). At 60 fps that's days of your computer just playing Geometry Dash over and over.
 
-Every hobby project I found does the same thing: they wire an RL agent directly into the running game and let it learn by playing. It works, kind of. But there's a wall you hit immediately — the game runs at 60 frames per second, and it will not go faster. Reinforcement learning is hungry; it wants millions of frames. At 60 frames a second, "millions of frames" means days of your computer playing Geometry Dash in real time.
+That felt like the wrong thing to be waiting on, so I wrote a small physics simulator instead — just the movement, no graphics or sound. Because it's so stripped down it runs a couple thousand times faster than the real game, so training takes seconds instead of days. The plan was to train in the fast fake version and then check whether it still works on the real one.
 
-That felt like the wrong problem to be solving. So I flipped it.
+That last part — whether it survives on the real game — turned out to be the actual hard problem.
 
-Instead of training *in* the game, I wrote a small physics simulator that mimics Geometry Dash's movement — just the parts that matter, no graphics, no sound. Because it's stripped down, it runs at over **two thousand times real speed**. An agent that would take days to train in the game trains in *seconds* in the sim. The real game stops being the training ground and becomes the exam: I train in the fast fake world, then see if what the agent learned survives contact with the real one.
+## Comparing a few algorithms first
 
-That "does it survive contact" question — the sim-to-real gap — turned out to be the actual heart of the project.
+Before touching the real game I used the sim to compare three approaches on the same levels: DQN, PPO, and a genetic algorithm. I assumed PPO would win because it's the one everyone reaches for. It didn't.
 
-## A three-way fight, and a genuinely surprising loser
+*(Image: comparison.png)*
 
-Before touching the real game, I used the sim to run an experiment I'd been curious about: throw three different families of algorithms at the same levels, under identical conditions, and see who wins. Value-based (DQN), policy-gradient (PPO), and a genetic algorithm — the evolutionary, "breed the best networks" approach that everyone treats as the unfashionable option.
+On the harder level PPO kept getting stuck in the exact same spot every time. The reason is kind of interesting: you get free progress up to the first risky jump, and dying costs you points. So PPO learned "just take the free progress and don't risk the jump" and refused to try anything else. I threw 6 million training steps at it and it still wouldn't budge. Meanwhile DQN and the genetic algorithm both cleared every level on every random seed, and the genetic algorithm was actually the fastest of the three. That makes sense once you notice the levels are deterministic — same inputs always give the same run — so an approach that basically memorizes a good input sequence does really well here.
 
-*(Image: the `comparison.png` chart.)*
+Not a groundbreaking result, but it was a good reminder that the "best" algorithm depends entirely on the problem, not on what's trendy.
 
-I expected PPO to win. It's the modern default, the one everyone reaches for. It lost.
+## Getting it onto the real game
 
-On the harder level, PPO reliably got **stuck** — not failing randomly, but converging to the same wrong answer every time. Here's why, and it's a neat little lesson: the level gives you free progress up to the first risky jump, and dying costs a penalty. PPO, being cautious and on-policy, learned "collect the free progress, don't take the scary jump." It parked itself at a local optimum and refused to leave. I threw six million training steps at it. Didn't matter.
+To connect my Python agents to the actual game I had to write a mod in C++ using Geode (the Geometry Dash modding framework). The mod reads the cube's position and velocity every frame and injects the jump input, and sends all of that back and forth to Python over a local socket.
 
-Meanwhile the "unfashionable" genetic algorithm and the old-reliable DQN both solved every level, every random seed. The GA was the fastest of all — which makes sense once you realize Geometry Dash levels are *deterministic*. The same inputs always produce the same run. That's the exact regime where an algorithm that just memorizes a good input sequence shines.
-
-The takeaway I keep coming back to: "state of the art" is a property of the *problem*, not the algorithm. You only learn things like this by actually running the comparison instead of trusting the leaderboard.
-
-## Meeting the real game (and a gut punch)
-
-To connect my Python agents to the retail game, I had to write a mod in C++ using Geode, the Geometry Dash modding framework. The mod hooks into the game's update loop, reads out the cube's real position and velocity every frame, and injects the jump input — all streamed over a local socket to my Python code.
-
-Getting this working on the actual game was its own saga (more on the bugs later), but the moment it connected and I watched a policy — trained *entirely in my fake sim, never having seen the real game* — start driving the real cube, jumping real spikes... that was the best moment of the project.
+The first time it connected and I watched a policy that had only ever seen my fake sim start driving the real cube and jumping real spikes — that was easily the best moment of the whole thing.
 
 It also died at 11%.
 
-And honestly? That death is the whole point. My sim's physics are an *approximation* of the real game's. Close, but not frame-perfect. The agent learned to jump with millisecond timing tuned to my sim's slightly-wrong gravity, and over enough obstacles that small error compounds into a death. This is the sim-to-real gap in its purest form, and no amount of clever ML makes it disappear — you have to actually measure the difference and close it.
+*(Image: real_stereo_clip.gif)*
 
-## Getting clever with determinism
+Which, honestly, is the whole point. My sim's physics are only an approximation of the real game's — close, but not exactly right. The agent had learned jump timings tuned to my slightly-wrong gravity, and over enough obstacles that small error adds up until it dies. This is the "sim-to-real gap" everyone talks about, and there's no clever trick that makes it go away. You just have to measure the difference and fix your sim.
 
-11% wasn't going to cut it. So I leaned into that "deterministic" property.
+## Trying to be clever about it
 
-If the same inputs always produce the same result, then beating a level is really a search problem: find the input sequence that survives. And Geometry Dash has a feature that makes this tractable — **practice mode checkpoints**. Clear a chunk, drop a checkpoint, and you respawn there instead of the start.
+11% wasn't great, so I tried a different angle. Since the levels are deterministic, beating one is really just finding an input sequence that survives. And Geometry Dash has practice mode, where you can drop checkpoints and respawn at them instead of the start.
 
-So I built a search that runs *on the real game*: from the last checkpoint, try jump patterns; when one survives a stretch, lock it in with a checkpoint and search the next stretch. Each attempt only replays a few seconds, not the whole level. Nothing has to transfer from the sim — it's optimizing against the real game's own physics.
+So I wrote a search that runs on the real game: from the last checkpoint, try some jump patterns, and when one survives a stretch, drop a checkpoint there and search the next stretch. Each attempt only replays a few seconds instead of the whole level. This worked pretty well — it slowly pushed forward and eventually got to about 35%.
 
-It worked. The frontier marched forward — 12%, 30%, and then it blew through a long stretch in one lucky run to **35%**.
+Then it hit the ship section and stopped cold. In the ship parts you hold the button to fly instead of jumping, threading through spikes above and below. My "try different jump timings" search had no idea what to do with continuous flying, so it just got stuck.
 
-*(Image: a frame of the checkpoint search, or the `real_stereo_clip.gif`.)*
+## Just showing it how
 
-Then it hit the ship section and stopped dead.
+At this point I stopped trying to be clever. If the hard part was the ship section and *I* can fly the ship section, why not just let it learn from me?
 
-The ship is a different beast. Instead of discrete jumps, you're holding the button to fly, threading a corridor of spikes on the floor and ceiling. It's *continuous control*, and my "try some jump timings" search had no idea what to do with it. It could brute-force discrete jumps forever and never fly a ship.
+So I added a record mode to the mod. This one's passive — the game runs at full normal speed and the mod just watches my inputs each frame instead of taking over. (Getting that right took a couple tries; my first version paused the game to wait for my program every frame, which made it laggy and impossible to play.) I'd play the level myself, once, and it records exactly what I pressed on every frame. Then, because the game is deterministic, I can feed those inputs back and the agent reproduces my run.
 
-## The pivot: just show it how
+Nice and simple. It kept dying at 62%.
 
-This is where I stopped trying to be clever and asked a better question. If the hard part is the ship section, and *I* can fly the ship section... why not let the agent learn from me?
+## The dumb bug
 
-This is learning from demonstration, and it sidesteps everything I was stuck on. I built a "record mode" into the mod — a passive one, where the game runs at full native speed and the mod just *watches* my inputs each frame instead of taking control (getting that lag-free was its own fix; the first version frame-locked the game and made it unplayable). I'd play the level myself, once, all the way through. The mod records my exact frame-by-frame inputs. Then, because the game is deterministic, I replay those inputs and the agent reproduces my run perfectly.
+This is the part I'd usually leave out, which is exactly why I'm including it.
 
-Simple idea. It did not work. It kept dying at 62%.
+The replay would go perfectly through the whole first half — cube, ship, everything — and then die at 62% every single time. I tried three different ways of feeding the inputs back in. I rewrote how the mod presses the button. I forced a fixed physics timestep so it couldn't drift. Every fix meant rebuilding the mod and relaunching the game, and it kept dying in the same place. I was pretty sure it was some deep timing problem in the game's physics and was about ready to give up and call it "reproduces 62%."
 
-## The bug that ate three hours
+Then I actually read the logs and noticed the game was *crashing on shutdown*. My mod had a background thread I wasn't cleaning up properly, and it was leaving the game in a slightly broken state — so every test I ran afterward was starting from corrupted state. The 62% wasn't a physics limit. My own crash was quietly messing up the results.
 
-Here's the part I'd normally leave out of a portfolio, which is exactly why I'm putting it in.
+I fixed the crash. And here's the embarrassing part: I still didn't think it would matter and almost didn't retry. Someone I was working through it with told me to just run it once more on a clean launch. It cleared the whole level, 100%. The fix had been right the entire time — the crash was the thing lying to me. I'd spent hours debugging the wrong layer.
 
-The replay reproduced my run flawlessly through the entire first half — cube section, ship section, all of it — and then died at 62%. Every time. I tried three different ways of feeding the inputs back. I rewrote how the mod applies button presses. I forced a fixed physics timestep so the replay couldn't drift. Each fix required rebuilding the mod and relaunching the game, and each attempt died in roughly the same place. I was convinced it was a deep, unfixable frame-timing problem in the game's continuous-control physics. I was about ready to write it up as "reproduces 62%, full clear is future work."
+*(Image / video: the full clear — agent_clears_stereo_madness.mp4 on YouTube, or the gif.)*
 
-Then I noticed something in the logs: the game was **crashing** on shutdown. My mod had a background thread that wasn't being torn down safely, and it was corrupting the game's state — which meant every "clean" test I'd run afterward was starting from a subtly broken state. The 62% wasn't a physics limit. It was my own crash poisoning the well.
+## Making it actually "learned"
 
-I fixed the crash. And here's the human part: I was still skeptical it would matter, and I almost didn't bother trying again. The person I was working through this with pushed me to just run it one more time on a genuinely clean launch.
+I want to be clear about what that clear is, because it's easy to oversell. Replaying a recorded run is a systems thing — it proves the mod and the determinism work — but it's *not* an RL agent figuring out the level on its own. It's playback.
 
-`REPLAY CLEARED THE LEVEL (100%)`.
+So I took the recording (game state + what I pressed, every frame) and trained a small network to predict "would a human jump here?" from the game state. That's behavior cloning, and it got to about 90.7% accuracy on frames it hadn't seen. It's a genuinely learned policy that imitates how I play. It also drifts if you let it drive the whole level by itself, which is the known weakness of behavior cloning on a single frame-perfect task — one wrong frame and the mistakes pile up. So the guaranteed clear still uses the replay; the learned policy is more of an "okay, it did learn something" companion. I'd rather be straight about that than pretend it solved the level on its own.
 
-*(Image: the full-clear `agent_clears_stereo_madness.mp4`.)*
+## Stuff I'd tell myself starting over
 
-The fix had been right the whole time. The crash was the thing lying to me. I'd been debugging the wrong layer for hours — a very ordinary, very humbling engineering experience that no clean writeup ever admits to.
+- Building the fast sim was the best decision by far. Almost none of the ML would've been practical if every experiment took days instead of seconds.
+- Actually run the comparison instead of assuming. The PPO-getting-stuck thing is my favorite part and it only showed up because I ran it with proper seeds.
+- When something is consistently wrong in a way that makes no sense, suspect your setup before your theory. I spent hours "fixing" physics when the real problem was a crash.
+- Say what your result actually is. "Completed the level via learning from demonstration" is honest. "My RL agent beat Geometry Dash" is the kind of sentence that falls apart the moment someone asks a follow-up question.
 
-## Making it "learned," honestly
+The code, all the clips, the algorithm comparison, and a blunt list of what still doesn't work are on GitHub: **[github.com/abs768/geometry-dash-rl](https://github.com/abs768/geometry-dash-rl)**.
 
-Now, I want to be precise about what that clear *is*, because this is where people oversell and get caught. Deterministic replay of a recorded run is a systems achievement — it proves the mod, the bridge, and the determinism all work — but it is *not* "an RL agent autonomously discovered how to beat the level." It's playback.
+There's still a bunch left to do — the sim's physics for the non-cube modes are rough, sim-to-real transfer still dies early because I haven't calibrated the jump arc, and I never got the autonomous agent past the ship section. But it does play the real game start to finish, and I learned more about debugging and being honest about results than I did about RL, which is probably the most useful thing I can say about it.
 
-So I took the demonstration data — the game state and my input, every frame — and trained a **behavior-cloning** policy: a neural network that learns to predict "would a human jump right now?" from the game state. It hit **90.7% accuracy** on held-out frames, with a solid F1 on the jump decisions specifically (jumps are rare, so raw accuracy would be misleading — always worth checking).
-
-That's a genuinely *learned* policy that imitates my play. It also drifts if you let it drive the whole level solo, which is the honest, well-known failure mode of behavior cloning on a single frame-perfect task — one wrong frame and the errors snowball. So the guaranteed clear still uses replay; the learned policy is the "it actually learned something" companion, not a magic solo act. Being clear about that distinction is, I think, more impressive than pretending otherwise.
-
-## What I'd tell myself at the start
-
-- **Decouple the expensive thing.** The single best decision was building the fast sim so I wasn't held hostage to 60 fps. Most of the ML only worked *because* iteration was cheap.
-- **Run the experiment; don't trust the reputation.** The PPO-gets-stuck result is my favorite finding, and it came from seeds and controls, not a bigger model.
-- **The bug is usually one layer below where you're looking.** I spent hours "fixing" a physics problem that was actually a memory-management crash. When results are inexplicably consistent-but-wrong, suspect your harness before your theory.
-- **Say what your result actually is.** "Completed the level via learning from demonstration" is true and defensible. "My RL agent beat Geometry Dash" is a sentence someone will take apart in an interview.
-
-The code, all the footage, the algorithm comparison, and a blunt list of what still doesn't work are on GitHub: **[github.com/abs768/geometry-dash-rl](https://github.com/abs768/geometry-dash-rl)**.
-
-It plays the real game, start to finish. Getting there taught me more about debugging and honesty than about reinforcement learning — which is probably the most honest thing I can say about it.
+If you have questions or want to poke at the code, feel free.
