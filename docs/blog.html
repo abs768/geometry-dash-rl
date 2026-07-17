@@ -36,6 +36,21 @@
   nav.top a { color:#888; text-decoration:none; }
   nav.top a:hover { color:#0a58ca; }
   @media (prefers-color-scheme: dark) { nav.top a:hover { color:#6ca8ff; } }
+  .uploader { border:1px dashed rgba(127,127,127,.45); border-radius:12px;
+    padding:18px 20px 20px; margin:0 0 3em;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .uploader h3 { font-size:1rem; margin:0 0 .25em; letter-spacing:0; }
+  .uploader p.note { font-size:.85rem; color:#888; margin:0 0 1.1em; line-height:1.5; }
+  .uploader .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+  @media (max-width:520px) { .uploader .grid { grid-template-columns:1fr; } }
+  .uploader figure { margin:0; }
+  .uploader img { width:100%; border-radius:8px; display:block;
+    border:1px solid rgba(127,127,127,.25); background:#0b0d12; aspect-ratio:16/9; object-fit:cover; }
+  .uploader figcaption { font-size:.78rem; color:#888; margin-top:.45em; line-height:1.45; }
+  .uploader figcaption b { color:inherit; font-weight:600; }
+  .uploader .fn { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size:.72rem; background:rgba(127,127,127,.15); padding:.05em .3em; border-radius:3px; }
+  @media print { .uploader { display:none; } }
 </style>
 </head>
 <body>
@@ -43,6 +58,27 @@
   <a href="./">← Home</a>
   <a href="https://github.com/abs768/geometry-dash-rl">GitHub</a>
 </nav>
+
+<section class="uploader">
+  <h3>📎 Images for your Medium upload</h3>
+  <p class="note">Not part of the article — a helper for when you paste into Medium. Right-click → Save
+    (or drag straight into the editor). Each caption tells you where it goes.</p>
+  <div class="grid">
+    <figure>
+      <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/agent_clears_stereo_madness.gif" alt="The full clear">
+      <figcaption><b>1. Right after the intro</b><br><span class="fn">agent_clears_stereo_madness.gif</span></figcaption>
+    </figure>
+    <figure>
+      <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/comparison.png" alt="Algorithm comparison chart">
+      <figcaption><b>2. In "I was sure PPO would win"</b><br><span class="fn">comparison.png</span></figcaption>
+    </figure>
+    <figure>
+      <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/real_stereo_clip.gif" alt="Sim policy on the real game">
+      <figcaption><b>3. In "First contact with the real game"</b><br><span class="fn">real_stereo_clip.gif</span></figcaption>
+    </figure>
+  </div>
+</section>
+
 <article>
 
 <h1>I tried teaching an AI to play the real Geometry Dash</h1>
