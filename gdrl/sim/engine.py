@@ -42,10 +42,14 @@ def _overlaps(a, b) -> bool:
 
 
 class GDSim:
-    def __init__(self, level: Level, spawn_x: float = 0.0, spawn_y: float = 0.0):
+    def __init__(self, level: Level, spawn_x: float = 0.0, spawn_y: float = 0.0,
+                 params: physics.PhysicsParams | None = None):
         self.level = level
         self.spawn_x = spawn_x
         self.spawn_y = spawn_y
+        # Cube-arc / speed constants; default bundle == calibrated globals, so
+        # the numerics are unchanged unless a perturbed bundle is passed in.
+        self.p = params or physics.NOMINAL
 
     def reset(self) -> SimState:
         return SimState(
@@ -71,10 +75,10 @@ class GDSim:
         mode = s.mode
         if mode == CUBE:
             if hold and grounded:
-                vy = physics.JUMP_VELOCITY * g
+                vy = self.p.jump_velocity * g
                 grounded = False
             if not grounded:
-                vy -= physics.GRAVITY * physics.DT * g
+                vy -= self.p.gravity * physics.DT * g
         elif mode == ROBOT:
             # Variable-height jump: pop on press, extra thrust while held.
             if rising_edge and grounded:
@@ -87,7 +91,7 @@ class GDSim:
                     boost -= 1
                 else:
                     boost = 0
-                vy -= physics.GRAVITY * physics.DT * g
+                vy -= self.p.gravity * physics.DT * g
         elif mode == SHIP:
             accel = -g * physics.SHIP_GRAVITY + (g * physics.SHIP_THRUST if hold else 0.0)
             vy += accel * physics.DT
@@ -109,7 +113,7 @@ class GDSim:
             if not grounded:  # ran off an edge: fall until it hits a surface
                 vy -= physics.SPIDER_GRAVITY * physics.DT * g
         elif mode == WAVE:
-            vy = (1.0 if hold else -1.0) * g * physics.SPEED_1X * s.speed
+            vy = (1.0 if hold else -1.0) * g * self.p.speed_1x * s.speed
             grounded = False
 
         # Common terminal-velocity clamp (symmetric).
@@ -138,7 +142,7 @@ class GDSim:
         """Spider tap: flip gravity and snap instantly to the opposite surface."""
         size = physics.PLAYER_SIZE
         g = -state.gravity
-        x = state.x + physics.SPEED_1X * state.speed * physics.DT
+        x = state.x + self.p.speed_1x * state.speed * physics.DT
         y = self._snap_surface(x, state.y, g, size)
         if y is None:
             y = state.y
@@ -199,7 +203,7 @@ class GDSim:
 
         prev_bottom = state.y
         prev_top = state.y + size
-        x = state.x + physics.SPEED_1X * state.speed * physics.DT
+        x = state.x + self.p.speed_1x * state.speed * physics.DT
         y = state.y + vy * physics.DT
 
         # Floor / ceiling. The surface gravity pulls toward makes the player

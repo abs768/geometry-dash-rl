@@ -47,7 +47,7 @@ def train_ga(cfg: dict, run_dir: str) -> None:
     set_seed(seed)
     rng = np.random.default_rng(seed)
 
-    env = GDEnv(cfg["level"])
+    env = GDEnv(cfg["level"], randomize=cfg.get("randomize", 0.0))
     obs_dim = env.observation_space.shape[0]
     n_actions = env.action_space.n
     hidden = tuple(cfg.get("hidden", [64, 64]))  # small genome evolves faster

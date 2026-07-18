@@ -30,6 +30,7 @@ from gymnasium import spaces
 
 from gdrl.envs.observation import OBS_LEN, ascii_strip, build_observation
 from gdrl.sim import GDSim, Level
+from gdrl.sim import physics
 
 DEATH_REWARD = -10.0
 WIN_REWARD = 10.0
@@ -38,18 +39,30 @@ LEVELS_DIR = Path(__file__).resolve().parents[2] / "levels"
 
 
 class GDEnv(gym.Env):
+    """Sim-backed Gymnasium env.
+
+    Domain randomization: pass ``randomize=r`` (relative half-range, e.g. 0.15)
+    to jitter the cube-arc/speed physics ±r *per episode*, so a policy learns to
+    survive a range of physics rather than one exact point estimate — the
+    standard defense against the sim-to-real gap. Pass ``params`` to pin the sim
+    to a specific (possibly perturbed) physics bundle, e.g. to evaluate a policy
+    on a shifted "real" physics.
+    """
+
     metadata = {"render_modes": ["ansi"]}
 
-    def __init__(self, level: str | Path | Level, max_steps: int | None = None):
+    def __init__(self, level: str | Path | Level, max_steps: int | None = None,
+                 randomize: float = 0.0, params: physics.PhysicsParams | None = None):
         if not isinstance(level, Level):
             path = Path(level)
             if not path.exists():
                 path = LEVELS_DIR / f"{level}.json"
             level = Level.from_file(path)
         self.level = level
-        self.sim = GDSim(level)
+        self.randomize = float(randomize)
+        self._base_params = params or physics.NOMINAL
+        self.sim = GDSim(level, params=self._base_params)
         # Generous cap: 3x the frames a straight run needs.
-        from gdrl.sim import physics
         self.max_steps = max_steps or int(3 * level.length / (physics.SPEED_1X * physics.DT))
 
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(OBS_LEN,), dtype=np.float32)
@@ -75,6 +88,11 @@ class GDEnv(gym.Env):
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        if self.randomize > 0.0:
+            r = self.randomize
+            u = self.np_random.uniform  # seeded via super().reset(seed=...)
+            self.sim = GDSim(self.level, params=self._base_params.scaled(
+                jump=u(1 - r, 1 + r), gravity=u(1 - r, 1 + r), speed=u(1 - r, 1 + r)))
         self.state = self.sim.reset()
         return self._obs(), self._info()
 
@@ -98,8 +116,8 @@ class GDEnv(gym.Env):
         return ascii_strip(self.state.x, self.state.y, self.level)
 
 
-def make_env(level: str, max_steps: int | None = None, **_):
+def make_env(level: str, max_steps: int | None = None, randomize: float = 0.0, **_):
     """Factory usable directly or inside gym vector envs."""
     def _thunk():
-        return GDEnv(level, max_steps=max_steps)
+        return GDEnv(level, max_steps=max_steps, randomize=randomize)
     return _thunk

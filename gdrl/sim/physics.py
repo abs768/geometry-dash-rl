@@ -34,6 +34,35 @@ PLAYER_SIZE = 1.0
 # block's top, the contact counts as a landing.
 LANDING_TOLERANCE = 0.20
 
+
+# --- tunable physics bundle -------------------------------------------------
+# The three constants that define cube-mode fidelity and therefore the
+# sim-to-real gap: jump strength, gravity, and horizontal speed. Bundling them
+# lets a single GDSim run on perturbed physics (for domain randomization at
+# train time, or a shifted "real" physics at eval time) without mutating these
+# module globals. Defaults equal the calibrated constants above, so a GDSim
+# built with the default bundle is numerically identical to the original sim.
+from dataclasses import dataclass  # noqa: E402
+
+
+@dataclass(frozen=True)
+class PhysicsParams:
+    jump_velocity: float = JUMP_VELOCITY
+    gravity: float = GRAVITY
+    speed_1x: float = SPEED_1X
+
+    def scaled(self, jump: float = 1.0, gravity: float = 1.0,
+               speed: float = 1.0) -> "PhysicsParams":
+        """A copy with each constant multiplied by the given factor."""
+        return PhysicsParams(
+            jump_velocity=self.jump_velocity * jump,
+            gravity=self.gravity * gravity,
+            speed_1x=self.speed_1x * speed,
+        )
+
+
+NOMINAL = PhysicsParams()  # the calibrated point estimate
+
 # --- other gamemodes --------------------------------------------------------
 # These constants are approximate: they give controllable, plausible motion in
 # block units, not frame-perfect GD fidelity. Calibrate against real-game

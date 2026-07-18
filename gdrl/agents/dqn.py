@@ -49,7 +49,7 @@ def train_dqn(cfg: dict, run_dir: str) -> None:
     set_seed(cfg.get("seed", 0))
     rng = np.random.default_rng(cfg.get("seed", 0))
 
-    env = GDEnv(cfg["level"])
+    env = GDEnv(cfg["level"], randomize=cfg.get("randomize", 0.0))
     obs_dim = env.observation_space.shape[0]
     n_actions = env.action_space.n
 
