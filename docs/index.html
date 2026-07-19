@@ -220,6 +220,12 @@
         <p>A network trained on that demonstration predicts the human's jumps at 90.7% validation
           accuracy (jump F1 0.82) — a genuinely learned imitation policy.</p>
       </div>
+      <div class="card">
+        <div class="k">~1.7×</div>
+        <h3>Domain randomization</h3>
+        <p>Training across randomized physics widens the policy's tolerance to the sim-to-real gap
+          by ~1.7× vs a point estimate — the textbook fix, measured with a number.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -246,9 +252,28 @@
   </div>
 </section>
 
+<section id="robustness">
+  <div class="wrap">
+    <p class="eyebrow">Result #2</p>
+    <h2>Closing the sim-to-real gap on purpose</h2>
+    <p class="sub">A policy trained on one exact set of physics overfits the sim — which is why the
+      sim-trained agent dies ~11% into the real game. The standard defense is <b>domain
+      randomization</b>: jitter the physics every episode so the policy learns to survive a range,
+      not a single point estimate. I trained DQN with and without it (5 seeds) and measured the
+      tolerance to held-out physics error.</p>
+    <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/robustness.png"
+         alt="Robustness curves: domain randomization vs point estimate" loading="lazy"
+         style="width:100%;border-radius:12px;border:1px solid var(--border);background:#fff;display:block;">
+    <div class="finding" style="margin-top:22px;"><b>Domain randomization widens the
+      ≥90%-progress tolerance band ~1.7×</b> on both jump strength and speed, and degrades
+      gracefully where the point-estimate policy cliffs. It's not magic — beyond ±15% both fail at a
+      timing-critical obstacle — but that's the honest ceiling, stated.</div>
+  </div>
+</section>
+
 <section id="demos">
   <div class="wrap">
-    <p class="eyebrow">Results #2–4</p>
+    <p class="eyebrow">Results #3–5</p>
     <h2>Watch it run</h2>
     <p class="sub">The sim renders shareable clips, and the mod records footage straight off the
       retail game. A few of them:</p>
@@ -337,7 +362,7 @@
       <span class="chip">POSIX sockets</span>
       <span class="chip">custom binary protocol</span>
       <span class="chip">matplotlib · ffmpeg</span>
-      <span class="chip">41 tests</span>
+      <span class="chip">48 tests</span>
     </div>
   </div>
 </section>

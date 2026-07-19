@@ -10,7 +10,7 @@ full-level clear via learning from demonstration.
 *An agent completing the ship section of the official Stereo Madness on retail
 Geometry Dash 2.2.*
 
-**[📄 Case study](CASE_STUDY.md)** · **[Results & methodology](results/RESULTS.md)** · 41 tests · Python + PyTorch + C++/Geode
+**[📄 Case study](CASE_STUDY.md)** · **[Results & methodology](results/RESULTS.md)** · 48 tests · Python + PyTorch + C++/Geode
 
 ---
 
@@ -20,6 +20,7 @@ Geometry Dash 2.2.*
 |--------|------------------------|
 | **DQN vs PPO vs GA comparison** | Controlled, seeded experiment in the sim. Reproducible finding: on-policy PPO gets trapped in a local optimum where value-based/evolutionary methods don't. |
 | **Sim-to-real transfer** | A policy trained *only in the sim* drives the retail game via the mod, reaching ~11%; a checkpoint search on the real game clears the full cube section (~35%). |
+| **Domain randomization** | Training across randomized physics (±18%/episode) widens the policy's tolerance to the sim-to-real gap by **~1.7×** vs a point estimate, measured on held-out physics perturbations (`results/robustness.png`). |
 | **Full-level clear** | The complete official level, via **learning from demonstration** — a recorded human run replayed deterministically on the real game (not autonomous RL; see [Honest scope](#honest-scope--limitations)). |
 | **Behavior cloning** | A policy trained on that demonstration predicts the human's jumps at **90.7% val accuracy (jump F1 0.82)**. |
 
@@ -54,6 +55,20 @@ Full methodology: [`results/RESULTS.md`](results/RESULTS.md).
 optimum** at the first death-risky jump (free progress up to it, a −10 penalty
 for the risk) on 2/3 seeds of the harder level — and 6M steps does not rescue
 it. A single-algorithm project cannot surface this.
+
+### Sim-to-real robustness: domain randomization
+
+Training on one exact set of physics constants overfits the sim; the standard
+fix is to randomize the physics each episode so the policy tolerates a *range*.
+Trained with vs without ±18% domain randomization (5 seeds), then evaluated
+across held-out physics perturbations:
+
+![robustness](results/robustness.png)
+
+DR widens the ≥90%-progress tolerance band by **~1.7×** on both jump strength
+and speed, and degrades gracefully where the point-estimate policy cliffs. Full
+methodology: [`results/RESULTS.md`](results/RESULTS.md). Reproduce with
+`python dr_experiment.py`.
 
 ### Sim-to-real and the full clear
 
@@ -98,9 +113,10 @@ gdrl/models/     MLP / actor-critic networks
 configs/         one YAML recipe per experiment
 levels/          level files (JSON)
 gd-mod/          Geode C++ mod (protocol, socket server, hooks) + build recipe
-tests/           41 tests: physics, env API, determinism, bridge, gamemodes, importer
+tests/           48 tests: physics, env API, determinism, bridge, gamemodes, importer
 results/         comparison figure, RESULTS.md, footage
 train.py sweep.py evaluate.py plot.py play.py render.py       # sim workflow
+dr_experiment.py                                              # domain-randomization robustness study
 prepare_real_level.py play_real_agent.py beat_level.py        # real-game workflow
 record_play.py train_bc.py                                    # learning from demonstration
 ```
@@ -112,7 +128,7 @@ Requires Python 3.10+.
 ```bash
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                 # 41 tests: physics, env, determinism, bridge, importer
+pytest                 # 48 tests: physics, env, determinism, bridge, importer
 ```
 
 ### Reproduce the headline results (sim only, no game needed)
@@ -175,10 +191,12 @@ I'd rather state these up front:
   not an autonomous RL agent solving the level.** The behavior-cloning policy
   *learns* the input mapping (90.7% val acc) but, like BC on a single
   frame-perfect level, drifts — so replay is used for the exact clear.
-- **Sim-to-real transfer dies at ~11%.** I've since calibrated the cube jump
-  against logged real trajectories (the old constants undershot the real apex
-  by ~8%), but closing the transfer gap fully needs more than the jump arc
-  alone, and I haven't re-run the on-real transfer since. Autonomous checkpoint
+- **Sim-to-real transfer dies at ~11%** for the point-estimate policy. Two
+  things narrow the gap: calibrating the cube jump against logged real
+  trajectories (the old constants undershot the real apex by ~8%), and training
+  with domain randomization (~1.7× wider physics tolerance, measured in sim). I
+  have not yet re-run the *on-real* transfer with both, so the ~11% figure is
+  the un-hardened baseline, not the current ceiling. Autonomous checkpoint
   search reaches ~35% (the cube section) before the ship section's continuous
   control.
 - **Non-cube physics are approximate** (chosen for plausible motion, pending
@@ -194,6 +212,9 @@ I'd rather state these up front:
 - [x] GD level-string importer (base64/zlib, object-type classification)
 - [x] Sim-to-real transfer + on-real-game checkpoint search
 - [x] Learning from demonstration (record/replay) + behavior cloning
-- [ ] Physics calibration against logged real trajectories (esp. non-cube modes)
+- [x] Cube-jump calibration against logged real trajectories
+- [x] Domain randomization + measured robustness to the sim-to-real gap
+- [ ] Non-cube physics calibration against logged trajectories
+- [ ] Re-run on-real transfer with the hardened (calibrated + DR) policy
 - [ ] Dual/mini modes; per-mode hitboxes
 - [ ] Pixel-observation ablation; W&B tracking

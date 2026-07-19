@@ -44,7 +44,7 @@ Fast headless sim  ──►  RL agents (DQN / PPO / GA)  ──►  Geode C++ m
   and injects input over a **length-prefixed binary socket protocol**, with a
   Python bridge (`gdrl/envs/bridge.py`).
 - **Test-first bridge design**: a protocol-faithful *mock* of the game backed by
-  the sim let me verify the entire Python↔game path (35 tests) before ever
+  the sim let me verify the entire Python↔game path (part of the 48-test suite) before ever
   touching the retail game.
 
 ## Results
@@ -74,6 +74,16 @@ real spikes. It reached ~11% before a physics-gap death. A **checkpoint-based
 search** on the real game (exploiting determinism + practice-mode checkpoints)
 then cleared the **entire cube section, 35%**, autonomously.
 
+I then closed the sim-to-real loop on the sim side, two ways. First I
+**calibrated** the cube jump against the logged real trajectory and found the
+sim had been undershooting the real jump apex by ~8% — a concrete, measurable
+model error. Then I applied the standard defense against the residual gap,
+**domain randomization**: training DQN across ±18%-per-episode jitter of the
+physics and measuring robustness on held-out perturbations. DR widened the
+policy's tolerance to physics error by **~1.7×** on both jump strength and speed
+(`results/robustness.png`), turning "the sim is approximate" from a caveat into
+a measured, mitigated quantity.
+
 ### 3. Completing the full level — learning from demonstration
 
 Autonomous search stalls at the ship section (continuous control). So I closed
@@ -99,10 +109,11 @@ credible part:
   the exact clear.
 - The **non-cube physics are approximate** (calibration against real
   trajectories is future work); robot/spider are first-pass.
-- Sim-to-real transfer dies at ~11%. I've since calibrated the **cube** jump
-  against logged real trajectories (the old constants undershot the real apex by
-  ~8%), but the full transfer gap needs more than the jump arc, and I haven't
-  re-run the on-real transfer since.
+- Sim-to-real transfer dies at ~11% for the *un-hardened* policy. I've since
+  calibrated the cube jump (the old constants undershot the real apex by ~8%)
+  and added domain randomization (~1.7× wider physics tolerance, measured in
+  sim), but I have not yet re-run the *on-real* transfer with the hardened
+  policy — so ~11% is the baseline, not the current ceiling.
 
 ## What I learned
 

@@ -102,6 +102,16 @@ That's an 8% shortfall in jump height, sitting quietly in my physics the whole t
 
 The fix was fiddly in a way I found kind of satisfying. The obvious move is to plug the real measurements into the textbook projectile equations and solve for gravity and jump strength — but when I did that, the sim was *still* wrong, because a discrete step-by-step simulation doesn't behave exactly like the smooth continuous math. So instead I fit the constants against my actual simulation loop until its jump landed precisely on the real 2.13 blocks over 25 frames. Now the sim jumps like the real game does, at least for the cube. Closing the *full* transfer gap needs more than just the jump arc, but it's a real, measured improvement instead of a shrug — and finding that hidden 8% felt like the most honest bit of debugging in the whole project.
 
+## The actual textbook fix
+
+Calibrating the jump made the sim *more* correct, but it doesn't solve the deeper problem: however carefully I measure my constants, they'll never be exactly right, and a policy that memorizes timing against one exact set of numbers is fragile by design. The moment the real game's physics differ even slightly, its timing is off.
+
+There's a standard trick for this, and I'd been avoiding it because it felt like admitting my sim would always be a little wrong. It's called domain randomization, and the idea is almost cheeky: instead of training on your best guess of the physics, deliberately *jitter* the physics every single episode — make gravity a bit stronger this run, the jump a bit weaker the next, the speed a touch faster after that. The agent never gets to overfit one exact world, so it's forced to learn a strategy that survives a whole range of them. If your real numbers land anywhere in that range, you're fine.
+
+So I trained two versions: one on the calibrated physics as usual, and one where I randomized the jump, gravity, and speed by ±18% each episode. Then I tested both across a sweep of "wrong" physics — deliberately handing each policy a game whose jump or speed was off by some percentage — and measured how far they got.
+
+The randomized policy held up across almost twice as wide a band of error before it started failing. Concretely, the range of jump-strength error it could absorb while still clearing ≥90% of the level was about 1.7× wider than the plain policy's. It's not a magic fix — push the physics far enough and both die at the same nasty obstacle — but it's exactly the kind of robustness you want when you *know* your sim is an approximation. And I could finally put a number on something I'd been hand-waving about the whole project.
+
 ## What I'd tell myself if I started over
 
 A few things stuck with me more than the ML did.
