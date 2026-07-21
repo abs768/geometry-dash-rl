@@ -139,9 +139,10 @@ pytest                 # 48 tests: physics, env, determinism, bridge, importer
 ### Reproduce the headline results (sim only, no game needed)
 
 ```bash
-python sweep.py                          # DQN/PPO/GA × 3 seeds × 2 levels
+python sweep.py --seeds 0 1 2 3 4        # DQN/PPO/GA × 5 seeds × 2 levels
 python evaluate.py                       # greedy eval -> runs/summary.csv
 python plot.py                           # -> results/comparison.png
+python dr_experiment.py                  # domain-randomization robustness -> results/robustness.png
 python render.py --run runs/ga_stereo_open --algo ga --level stereo_madness_open --out out.gif
 ```
 
