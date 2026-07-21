@@ -18,19 +18,21 @@ That one decision — build the fast fake version first — quietly made the ent
 
 That last part, "does it still work in the real one," turned out to be the whole ballgame.
 
-## I was sure PPO would win. It didn't.
+## PPO needed babysitting the others didn't
 
 Before touching the real game at all, I used my simulator to do something I'd wanted to do for a while: actually compare a few different learning algorithms on the same problem, properly, with multiple random seeds so I wasn't fooling myself.
 
 I tried three. DQN, which learns the value of actions. PPO, which is the algorithm everyone reaches for these days and the one I quietly assumed would come out on top. And a genetic algorithm, which is almost embarrassingly simple — it basically breeds a population of button-mashing sequences and keeps the ones that die the latest.
 
-PPO lost. Badly, and in a really interesting way.
+Once each was tuned, all three could actually clear both levels on every seed. But *getting* PPO there was a different story, and it's the part I found genuinely interesting.
 
-On the harder test level, PPO would get to the exact same spot every time and then just... stop trying. It'd sit there collecting the easy progress up to the first genuinely risky jump, and then refuse to attempt the jump. And once I thought about the reward it was optimizing, it made total sense: it got points for moving forward, and it lost points for dying. So the safest strategy — the one that reliably scores okay — is "walk up to the scary part and stand there." Dying to try the jump was, from PPO's point of view, a bad trade. I threw six million training steps at it. It did not care.
+Out of the box, on the harder level, PPO would get to the exact same spot every time and then just... stop trying. It'd sit there collecting the easy progress up to the first genuinely risky jump, and then refuse to attempt it. And once I thought about the reward it was optimizing, it made total sense: it got points for moving forward, and it lost points for dying. So the safest strategy — the one that reliably scores okay — is "walk up to the scary part and stand there." Dying to try the jump was, from PPO's point of view, a bad trade. It parked itself at exactly 21.6% on four out of five random seeds and stayed there through a three-million-step budget.
 
-Meanwhile the genetic algorithm and DQN cleared every level on every seed, and the genetic algorithm was actually the fastest of the three to get there. That flips the usual intuition, but it makes sense here: these levels are completely deterministic. The same inputs always produce the same run. So an approach that essentially memorizes a good sequence of button presses is playing to the game's biggest weakness.
+The fix turned out to be exploration. PPO has a knob — the "entropy" coefficient — that controls how much it keeps trying random things instead of committing to whatever looks safe right now. Turning that up fivefold was the *entire* difference: with more pressure to keep exploring, it stopped settling for safe-but-stuck and cleared the level on every seed. So PPO can absolutely do this — it just won't unless you make it keep poking at the risky option.
 
-It's not a groundbreaking result. But it was a good, concrete reminder that the "best" algorithm is entirely a function of your problem, not of what's fashionable — and I only saw it because I bothered to run the comparison with proper seeds instead of assuming.
+Meanwhile DQN and the genetic algorithm cleared every level on every seed with none of that fiddling, and the genetic algorithm was actually the fastest of the three. That flips the usual intuition, but it makes sense here: these levels are completely deterministic. The same inputs always produce the same run. So an approach that essentially memorizes a good sequence of button presses is playing to the game's biggest weakness.
+
+It's not a groundbreaking result. But it was a good, concrete reminder that the "best" algorithm is entirely a function of your problem, not of what's fashionable — and that the interesting differences are often in *how much hand-holding* each method needs, not just whether it eventually works. I only saw any of it because I bothered to run the comparison with proper seeds instead of assuming.
 
 ## First contact with the real game
 

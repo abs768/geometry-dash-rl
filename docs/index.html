@@ -233,22 +233,30 @@
 <section id="comparison">
   <div class="wrap">
     <p class="eyebrow">Result #1</p>
-    <h2>PPO isn't always the answer</h2>
+    <h2>PPO isn't always the easy answer</h2>
     <div class="two">
       <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/comparison.png"
            alt="DQN vs PPO vs GA comparison chart" loading="lazy">
       <div>
         <table>
-          <tr><th>Algorithm</th><th class="c">spikes_easy</th><th class="c">blocks_and_spikes</th><th class="c">seeds</th></tr>
-          <tr><td>DQN (double)</td><td class="c">100%</td><td class="c">100%</td><td class="c tag-good">6/6</td></tr>
-          <tr><td>Genetic Algorithm</td><td class="c">100%</td><td class="c">100%</td><td class="c tag-good">6/6</td></tr>
-          <tr><td>PPO</td><td class="c">100%</td><td class="c">48%</td><td class="c tag-bad">4/6</td></tr>
+          <tr><th>Algorithm</th><th class="c">both levels</th><th class="c">seeds</th><th class="c">out of the box?</th></tr>
+          <tr><td>DQN (double)</td><td class="c">100%</td><td class="c tag-good">5/5</td><td class="c tag-good">yes</td></tr>
+          <tr><td>Genetic Algorithm</td><td class="c">100%</td><td class="c tag-good">5/5</td><td class="c tag-good">yes</td></tr>
+          <tr><td>PPO</td><td class="c">100%</td><td class="c tag-good">5/5</td><td class="c tag-bad">needs tuning</td></tr>
         </table>
-        <div class="finding"><b>PPO gets trapped</b> at the first death-risky jump — free progress
-          up to it, a −10 penalty for the risk — on the harder level. 6M steps doesn't rescue it.
-          A single-algorithm project can't surface this.</div>
+        <div class="finding">Given each method its own hyperparameters, <b>all three solve both
+          levels on all 5 seeds.</b> The catch is what PPO needed to get there — and DQN and GA
+          didn't.</div>
       </div>
     </div>
+    <p class="sub" style="margin-top:26px;">With its <b>default</b> exploration (entropy 0.01),
+      on-policy PPO converges to "take the free progress, don't risk the jump" and stalls at exactly
+      21.6% on <b>4 of 5 seeds</b> — through the entire 3M-step budget. A 5× entropy increase
+      (0.01 → 0.05) is the whole difference between 1/5 and 5/5 solved. Value-based and evolutionary
+      methods never fall in. This is the kind of thing a single-algorithm project can't surface.</p>
+    <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/ppo_ablation.png"
+         alt="PPO entropy ablation: default exploration traps at 21.6% on 4/5 seeds" loading="lazy"
+         style="width:100%;border-radius:12px;border:1px solid var(--border);background:#fff;display:block;">
   </div>
 </section>
 

@@ -1,61 +1,76 @@
 # Comparison results: DQN vs PPO vs Genetic Algorithm
 
-Setup: 3 algorithms × 3 seeds (0, 1, 2) × 2 levels, identical observation,
-action space and reward. Trained in the headless sim; evaluated with a single
+Setup: 3 algorithms × 5 seeds (0–4) × 2 levels, identical observation, action
+space and reward. Trained in the headless sim; evaluated with a single
 **greedy** (deterministic, argmax) rollout per run — the sim is deterministic so
 one rollout is an exact measurement. Reproduce with:
 
 ```bash
-python sweep.py --seeds 0 1 2 --levels spikes_easy blocks_and_spikes
+python sweep.py --seeds 0 1 2 3 4 --levels spikes_easy blocks_and_spikes
 python evaluate.py && python plot.py
 ```
 
 ![comparison](comparison.png)
 
-## Final greedy performance (% of level completed, mean over 3 seeds)
+## Final greedy performance (% of level completed, 5 seeds)
 
-| Algorithm | spikes_easy | blocks_and_spikes | Seeds solved (of 6) |
-|-----------|:-----------:|:-----------------:|:-------------------:|
-| **DQN** (double)        | **100%** (3/3) | **100%** (3/3) | **6/6** |
-| **Genetic Algorithm**   | **100%** (3/3) | **100%** (3/3) | **6/6** |
-| **PPO**                 | **100%** (3/3) | 48% (1/3)      | 4/6 |
+| Algorithm | spikes_easy | blocks_and_spikes | Seeds solved (of 10) |
+|-----------|:-----------:|:-----------------:|:--------------------:|
+| **DQN** (double)          | **100%** (5/5) | **100%** (5/5) | **10/10** |
+| **Genetic Algorithm**     | **100%** (5/5) | **100%** (5/5) | **10/10** |
+| **PPO** (tuned, ent=0.05) | **100%** (5/5) | **100%** (5/5) | **10/10** |
+
+With each method given its own hyperparameters, all three solve both levels on
+every seed. The interesting result isn't the final scoreboard — it's *what each
+method needed to get there*, and PPO's sensitivity to exploration in particular.
 
 ## Findings
 
-**1. Value-based (DQN) and evolutionary (GA) methods are robust; PPO is not.**
-DQN and the GA solve every seed on both levels. PPO solves the easy level every
-time but clears `blocks_and_spikes` on only 1 of 3 seeds — the other two get
-trapped at exactly 21.4% progress, the first block-over-spike section, where a
-mistimed jump means death.
+**1. All three solve the task, but sample efficiency differs by orders of
+magnitude.** The GA reaches 100% on `spikes_easy` in a few thousand environment
+steps (the near-vertical green sliver in the learning curves) because a
+deterministic level makes a single rollout an exact fitness signal; it converges
+on `blocks_and_spikes` in ~85 generations. DQN solves within ~400k steps, though
+its *training* curve is noisy (logged under ε-greedy exploration; greedy eval is
+100%). PPO needs ~1M of its 3M-step budget to climb.
 
-**2. PPO's failure is a local optimum, and compute does not fix it.** The first
-~21 blocks are free forward progress; the first risky jump carries a −10 death
-penalty. On-policy PPO converges to "collect the free progress, don't risk the
-jump." Raising the entropy coefficient from 0.01 → 0.05 rescued seed 0, but
-seeds 1 and 2 stayed trapped even when trained to **6M steps** (2× the reported
-budget). This is the on-policy local-optimum trap, not undertraining.
+**2. PPO falls into a local optimum unless you force exploration — and that's
+the real finding.** `blocks_and_spikes` gives free forward progress up to the
+first block-over-spike jump (~21.6%), where a mistimed jump costs −10. With its
+**default** entropy coefficient (0.01), on-policy PPO converges to "collect the
+free progress, don't risk the jump" and stalls at exactly **21.6% on 4 of 5
+seeds**, staying trapped through the full 3M-step budget. Raising the entropy
+coefficient 5× (0.01 → 0.05) escapes the trap on all 5 seeds. Value-based (DQN)
+and evolutionary (GA) methods never fall in — they solve every seed at their
+default settings.
 
-**3. The GA is the most sample-efficient by a wide margin.** It reaches 100% on
-`spikes_easy` in under a second of wall-clock and a few thousand environment
-steps (hence the near-vertical green sliver in the learning-curve panels),
-because a deterministic level makes a single rollout an exact fitness signal.
-On `blocks_and_spikes` it converges in ~85 generations.
+![PPO entropy ablation](ppo_ablation.png)
 
-**4. Structured observations + the fractional-x fix make DQN stable.** With the
+Reproduce the ablation:
+
+```bash
+for s in 0 1 2 3 4; do
+  python train.py --config configs/ppo.yaml --run-name ablation_ppo_ent001_s$s \
+    --override level=blocks_and_spikes seed=$s ent_coef=0.01
+done
+```
+
+**3. Structured observations + the fractional-x fix make DQN stable.** With the
 block-aligned grid alone, the exact jump frame was aliased across ~6 frames and
 DQN was erratic; adding the sub-block x-offset to the observation took DQN to
-6/6 solved. (This is why the DQN *training* curve looks noisy — it is logged
-under ε-greedy exploration — while its *greedy* evaluation is 100%.)
+solving every seed. (This is also why the DQN training curve looks noisy while
+its greedy evaluation is a clean 100%.)
 
 ## Why this is a stronger result than the prior single-algorithm work
 
 [geometry-dash-ai](https://github.com/ThePickleGawd/geometry-dash-ai) reports a
 DQN (and MoE-DQN) that plays the game, but with no controlled comparison across
 algorithm families, no seed statistics, and training capped at real time. Here,
-identical conditions across three algorithm families and three seeds surface a
-concrete, reproducible finding — PPO's seed-dependent local-optimum trap on
-precision timing — that a single-algorithm project cannot show. All 18 runs
-finished in well under an hour on one CPU core thanks to the headless sim.
+identical conditions across three algorithm families and five seeds surface a
+concrete, reproducible finding — PPO's default-exploration local-optimum trap on
+precision timing, and the exact entropy change that escapes it — that a
+single-algorithm project cannot show. All 30 sweep runs plus the ablation
+finished in about an hour on one CPU core thanks to the headless sim.
 
 ## Sim-to-real robustness: domain randomization
 
@@ -91,15 +106,17 @@ transfer without further calibration.
 
 ## Caveats
 
-- Levels are two hand-built sim levels, not yet official GD levels (the
-  level-string importer and the Geode bridge are the next milestones). Absolute
-  numbers will change on real levels; the *relative* algorithm behavior is the
-  transferable result.
-- PPO was given its own tuned hyperparameters (entropy 0.05, 3M steps); DQN and
-  GA use their defaults. Each method is allowed its own budget/hyperparameters,
-  as is standard, but PPO is the only one that needed tuning to get anywhere on
-  the hard level — itself part of the finding.
-- These runs predate the gamemode-aware observation (which appends a gamemode
-  one-hot + gravity flag). They were produced on the cube-only observation and
-  remain valid as reported; re-running `sweep.py` on the current code reproduces
-  the same comparison with the larger observation vector.
+- Levels are two hand-built sim levels, not official GD levels (though the
+  level-string importer can load real ones, e.g. `stereo_madness_open` used in
+  the DR study). Absolute numbers change on real levels; the *relative* algorithm
+  behavior is the transferable result.
+- Each method uses its own hyperparameters/budget, as is standard. PPO is the
+  only one that needed tuning (higher entropy) to clear the hard level reliably —
+  that sensitivity is itself the finding, isolated in the ablation above.
+- **Honest note on a result that changed:** an earlier version of this writeup
+  (3 seeds, before the cube-jump calibration) reported the *tuned* PPO config
+  itself trapping on 2/3 seeds. After calibrating the jump (+8% apex), the tuned
+  config solves all seeds, and the local-optimum trap now appears cleanly only
+  under default exploration. The docs were updated to match the current code; the
+  underlying finding — PPO's exploration sensitivity on this local optimum — is
+  unchanged and, if anything, cleaner.

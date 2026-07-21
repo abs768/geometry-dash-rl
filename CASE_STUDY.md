@@ -51,20 +51,29 @@ Fast headless sim  ──►  RL agents (DQN / PPO / GA)  ──►  Geode C++ m
 
 ### 1. A controlled DQN vs PPO vs GA comparison — with a real finding
 
-Same observation, reward, and levels; three seeds each.
+Same observation, reward, and levels; five seeds each. Given each method its own
+hyperparameters, **all three solve both levels on all 5 seeds** — so the finding
+isn't the scoreboard, it's *what PPO needed to get there*.
 
 ![Algorithm comparison](results/comparison.png)
 
-| Algorithm | seeds solved | headline |
-|-----------|:------------:|----------|
-| DQN (double)      | 6/6 | robust |
-| Genetic Algorithm | 6/6 | robust, most sample-efficient |
-| PPO               | 4/6 | **trapped in a local optimum** |
+| Algorithm | out of the box | note |
+|-----------|:--------------:|------|
+| DQN (double)      | ✅ solves | robust |
+| Genetic Algorithm | ✅ solves | robust, most sample-efficient |
+| PPO               | ❌ needs tuned exploration | **traps in a local optimum by default** |
 
-The clean result: **on-policy PPO reliably gets stuck** at the first
-death-risky jump (free progress up to it, a −10 penalty for the risk), where
-value-based and evolutionary methods don't — and *more compute didn't rescue it*
-(6M steps). A reminder that "best algorithm" is entirely problem-dependent.
+The clean result, isolated in an entropy ablation: with its **default** entropy
+coefficient (0.01), on-policy PPO gets stuck at exactly 21.6% — free progress up
+to the first death-risky jump, a −10 penalty for the risk — on **4 of 5 seeds**,
+through the full 3M-step budget. A 5× entropy increase (→ 0.05) escapes it on all
+5, while DQN and GA never fall in.
+
+![PPO entropy ablation](results/ppo_ablation.png)
+
+A reminder that "best algorithm" is problem-dependent — and that the telling
+differences are often in *how much tuning* a method needs, not whether it
+eventually works.
 
 ### 2. Sim-to-real transfer
 

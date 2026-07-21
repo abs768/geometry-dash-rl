@@ -69,8 +69,8 @@
       <figcaption><b>1. Right after the intro</b><br><span class="fn">agent_clears_stereo_madness.gif</span></figcaption>
     </figure>
     <figure>
-      <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/comparison.png" alt="Algorithm comparison chart">
-      <figcaption><b>2. In "I was sure PPO would win"</b><br><span class="fn">comparison.png</span></figcaption>
+      <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/ppo_ablation.png" alt="PPO entropy ablation">
+      <figcaption><b>2. In "PPO needed babysitting"</b><br><span class="fn">ppo_ablation.png</span></figcaption>
     </figure>
     <figure>
       <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/real_stereo_clip.gif" alt="Sim policy on the real game">
@@ -105,19 +105,20 @@
 <p>That one decision — build the fast fake version first — quietly made the entire project possible. The plan from there was simple to say and hard to do: train the agent in the fast fake world, then see if it still works in the real one.</p>
 <p>That last part, "does it still work in the real one," turned out to be the whole ballgame.</p>
 
-<h2>I was sure PPO would win. It didn't.</h2>
+<h2>PPO needed babysitting the others didn't</h2>
 <p>Before touching the real game at all, I used my simulator to do something I'd wanted to do for a while: actually compare a few different learning algorithms on the same problem, properly, with multiple random seeds so I wasn't fooling myself.</p>
 <p>I tried three. DQN, which learns the value of actions. PPO, which is the algorithm everyone reaches for these days and the one I quietly assumed would come out on top. And a genetic algorithm, which is almost embarrassingly simple — it basically breeds a population of button-mashing sequences and keeps the ones that die the latest.</p>
-<p>PPO lost. Badly, and in a really interesting way.</p>
+<p>Once each was tuned, all three could actually clear both levels on every seed. But <em>getting</em> PPO there was a different story, and it's the part I found genuinely interesting.</p>
+<p>Out of the box, on the harder level, PPO would get to the exact same spot every time and then just... stop trying. It'd sit there collecting the easy progress up to the first genuinely risky jump, and then refuse to attempt it. And once I thought about the reward it was optimizing, it made total sense: it got points for moving forward, and it lost points for dying. So the safest strategy — the one that reliably scores okay — is "walk up to the scary part and stand there." Dying to try the jump was, from PPO's point of view, a bad trade. It parked itself at exactly 21.6% on four out of five random seeds and stayed there through a three-million-step budget.</p>
 
 <figure>
-  <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/comparison.png" alt="DQN vs PPO vs GA comparison chart">
-  <figcaption>DQN and the genetic algorithm solve every seed; PPO stalls on the harder level.</figcaption>
+  <img src="https://raw.githubusercontent.com/abs768/geometry-dash-rl/main/results/ppo_ablation.png" alt="PPO entropy ablation: default exploration traps at 21.6% on 4 of 5 seeds; tuned exploration solves all 5">
+  <figcaption>Same algorithm, one knob changed. With default exploration (orange) PPO stalls at 21.6% on four of five seeds; with 5× more exploration (blue) it clears the level every time.</figcaption>
 </figure>
 
-<p>On the harder test level, PPO would get to the exact same spot every time and then just... stop trying. It'd sit there collecting the easy progress up to the first genuinely risky jump, and then refuse to attempt the jump. And once I thought about the reward it was optimizing, it made total sense: it got points for moving forward, and it lost points for dying. So the safest strategy — the one that reliably scores okay — is "walk up to the scary part and stand there." Dying to try the jump was, from PPO's point of view, a bad trade. I threw six million training steps at it. It did not care.</p>
-<p>Meanwhile the genetic algorithm and DQN cleared every level on every seed, and the genetic algorithm was actually the fastest of the three to get there. That flips the usual intuition, but it makes sense here: these levels are completely deterministic. The same inputs always produce the same run. So an approach that essentially memorizes a good sequence of button presses is playing to the game's biggest weakness.</p>
-<p>It's not a groundbreaking result. But it was a good, concrete reminder that the "best" algorithm is entirely a function of your problem, not of what's fashionable — and I only saw it because I bothered to run the comparison with proper seeds instead of assuming.</p>
+<p>The fix turned out to be exploration. PPO has a knob — the "entropy" coefficient — that controls how much it keeps trying random things instead of committing to whatever looks safe right now. Turning that up fivefold was the <em>entire</em> difference: with more pressure to keep exploring, it stopped settling for safe-but-stuck and cleared the level on every seed. So PPO can absolutely do this — it just won't unless you make it keep poking at the risky option.</p>
+<p>Meanwhile DQN and the genetic algorithm cleared every level on every seed with none of that fiddling, and the genetic algorithm was actually the fastest of the three. That flips the usual intuition, but it makes sense here: these levels are completely deterministic. The same inputs always produce the same run. So an approach that essentially memorizes a good sequence of button presses is playing to the game's biggest weakness.</p>
+<p>It's not a groundbreaking result. But it was a good, concrete reminder that the "best" algorithm is entirely a function of your problem, not of what's fashionable — and that the interesting differences are often in <em>how much hand-holding</em> each method needs, not just whether it eventually works. I only saw any of it because I bothered to run the comparison with proper seeds instead of assuming.</p>
 
 <h2>First contact with the real game</h2>
 <p>Now the fun part. To connect my Python agents to the actual game, I had to write a mod in C++ using Geode, the Geometry Dash modding framework. The mod's job is to read the cube's position and speed on every single frame, hand that to my Python code, and then take the jump decision my code sends back and press the button. All of it flying back and forth over a local socket.</p>

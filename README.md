@@ -18,7 +18,7 @@ Geometry Dash 2.2.*
 
 | Result | What it is — precisely |
 |--------|------------------------|
-| **DQN vs PPO vs GA comparison** | Controlled, seeded experiment in the sim. Reproducible finding: on-policy PPO gets trapped in a local optimum where value-based/evolutionary methods don't. |
+| **DQN vs PPO vs GA comparison** | Controlled, seeded experiment (5 seeds) in the sim. Reproducible finding: with default exploration, on-policy PPO gets trapped in a local optimum (4/5 seeds) that DQN and GA sidestep — a 5× entropy increase is what escapes it. |
 | **Sim-to-real transfer** | A policy trained *only in the sim* drives the retail game via the mod, reaching ~11%; a checkpoint search on the real game clears the full cube section (~35%). |
 | **Domain randomization** | Training across randomized physics (±18%/episode) widens the policy's tolerance to the sim-to-real gap by **~1.7×** vs a point estimate, measured on held-out physics perturbations (`results/robustness.png`). |
 | **Full-level clear** | The complete official level, via **learning from demonstration** — a recorded human run replayed deterministically on the real game (not autonomous RL; see [Honest scope](#honest-scope--limitations)). |
@@ -39,22 +39,27 @@ look-ahead occupancy grid), which is far more sample-efficient than pixels.
 
 ### Controlled algorithm comparison
 
-3 algorithms × 3 seeds × 2 levels, identical observation/reward, greedy
-evaluation. Reproduce with `python sweep.py && python evaluate.py && python plot.py`.
+3 algorithms × 5 seeds × 2 levels, identical observation/reward, greedy
+evaluation. Reproduce with `python sweep.py --seeds 0 1 2 3 4 && python evaluate.py && python plot.py`.
 Full methodology: [`results/RESULTS.md`](results/RESULTS.md).
 
 ![DQN vs PPO vs GA](results/comparison.png)
 
-| Algorithm | `spikes_easy` | `blocks_and_spikes` | seeds solved |
-|-----------|:-------------:|:-------------------:|:------------:|
-| DQN (double)      | 100% | 100% | **6/6** |
-| Genetic Algorithm | 100% | 100% | **6/6** |
-| PPO               | 100% | 48%  | 4/6 |
+Given each method its own hyperparameters, **all three solve both levels on all
+5 seeds** — the interesting part is *what each needed to get there*. The GA
+converges in a few thousand steps (deterministic levels make one rollout an exact
+fitness signal); DQN in ~400k; PPO in ~1M. And PPO only gets there with tuned
+exploration:
 
-**Finding:** DQN and the GA solve every seed; **PPO gets trapped in a local
-optimum** at the first death-risky jump (free progress up to it, a −10 penalty
-for the risk) on 2/3 seeds of the harder level — and 6M steps does not rescue
-it. A single-algorithm project cannot surface this.
+**Finding — PPO's local-optimum trap.** `blocks_and_spikes` gives free progress
+up to the first block-over-spike jump (~21.6%), where a mistimed jump costs −10.
+With its **default** entropy coefficient (0.01), PPO converges to "take the free
+progress, don't risk the jump" and stalls at exactly 21.6% on **4/5 seeds**,
+through the full 3M-step budget. A 5× entropy increase (0.01 → 0.05) escapes it
+on all 5. DQN and GA never fall in. A single-algorithm project cannot surface
+this.
+
+![PPO entropy ablation](results/ppo_ablation.png)
 
 ### Sim-to-real robustness: domain randomization
 
