@@ -112,7 +112,7 @@ There's a standard trick for this, and I'd been avoiding it because it felt like
 
 So I trained two versions: one on the calibrated physics as usual, and one where I randomized the jump, gravity, and speed by ±18% each episode. Then I tested both across a sweep of "wrong" physics — deliberately handing each policy a game whose jump or speed was off by some percentage — and measured how far they got.
 
-The randomized policy held up across almost twice as wide a band of error before it started failing. Concretely, the range of jump-strength error it could absorb while still clearing ≥90% of the level was about 1.7× wider than the plain policy's. It's not a magic fix — push the physics far enough and both die at the same nasty obstacle — but it's exactly the kind of robustness you want when you *know* your sim is an approximation. And I could finally put a number on something I'd been hand-waving about the whole project.
+The randomized policy held up across almost twice as wide a band of error before it started failing. Concretely, the range of jump-strength error it could absorb while still clearing ≥90% of the level was about 1.6× wider than the plain policy's (1.67× on horizontal speed). It's not a magic fix — push the physics far enough and both die at the same nasty obstacle — but it's exactly the kind of robustness you want when you *know* your sim is an approximation. And I could finally put a number on something I'd been hand-waving about the whole project.
 
 ## What I'd tell myself if I started over
 

@@ -1,0 +1,3 @@
+axis,threshold,nominal_width_pct,dr_width_pct,improvement_x,seeds,train_randomize,eval_grid,eval_points,level
+jump,0.9,12.5,20.0,1.6,5,0.18,0.3,25,stereo_madness_open
+speed,0.9,15.0,25.0,1.67,5,0.18,0.3,25,stereo_madness_open

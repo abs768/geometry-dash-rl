@@ -20,7 +20,7 @@ Geometry Dash 2.2.*
 |--------|------------------------|
 | **DQN vs PPO vs GA comparison** | Controlled, seeded experiment (5 seeds) in the sim. Reproducible finding: with default exploration, on-policy PPO gets trapped in a local optimum (4/5 seeds) that DQN and GA sidestep — a 5× entropy increase is what escapes it. |
 | **Sim-to-real transfer** | A policy trained *only in the sim* drives the retail game via the mod, reaching ~11%; a checkpoint search on the real game clears the full cube section (~35%). |
-| **Domain randomization** | Training across randomized physics (±18%/episode) widens the policy's tolerance to the sim-to-real gap by **~1.7×** vs a point estimate, measured on held-out physics perturbations (`results/robustness.png`). |
+| **Domain randomization** | Training across randomized physics (±18%/episode) widens the policy's tolerance to the sim-to-real gap by **1.60× (jump strength) and 1.67× (horizontal speed)** vs a point estimate, measured on held-out physics perturbations (`results/robustness_bands.csv`). |
 | **Full-level clear** | The complete official level, via **learning from demonstration** — a recorded human run replayed deterministically on the real game (not autonomous RL; see [Honest scope](#honest-scope--limitations)). |
 | **Behavior cloning** | A policy trained on that demonstration predicts the human's jumps at **90.7% val accuracy (jump F1 0.82)**. |
 
@@ -71,8 +71,9 @@ across held-out physics perturbations:
 
 ![robustness](results/robustness.png)
 
-DR widens the ≥90%-progress tolerance band by **~1.7×** on both jump strength
-and speed, and degrades gracefully where the point-estimate policy cliffs. Full
+DR widens the ≥90%-progress tolerance band by **1.60×** on jump strength and
+**1.67×** on speed, and degrades gracefully where the point-estimate policy
+cliffs. Full
 methodology: [`results/RESULTS.md`](results/RESULTS.md). Reproduce with
 `python dr_experiment.py`.
 
@@ -201,7 +202,7 @@ I'd rather state these up front:
 - **Sim-to-real transfer dies at ~11%** for the point-estimate policy. Two
   things narrow the gap: calibrating the cube jump against logged real
   trajectories (the old constants undershot the real apex by ~8%), and training
-  with domain randomization (~1.7× wider physics tolerance, measured in sim). I
+  with domain randomization (1.6-1.67× wider physics tolerance, measured in sim). I
   have not yet re-run the *on-real* transfer with both, so the ~11% figure is
   the un-hardened baseline, not the current ceiling. Autonomous checkpoint
   search reaches ~35% (the cube section) before the ship section's continuous

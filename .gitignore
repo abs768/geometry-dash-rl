@@ -2,7 +2,16 @@
 __pycache__/
 *.pyc
 *.egg-info/
-runs/
+# Training runs are local artifacts (checkpoints are large and regenerable), with
+# one exception: the behavior-cloning metrics. The README quotes 90.7% val acc /
+# jump F1 0.82 from this file, so it is committed to make that claim checkable
+# without retraining. Written as `runs/*` rather than `runs/`, because git will
+# not descend into an excluded directory and a `!` exception inside one is
+# ignored — each level has to be re-included in turn.
+runs/*
+!runs/bc_stereo/
+runs/bc_stereo/*
+!runs/bc_stereo/bc_metrics.json
 checkpoints/
 .DS_Store
 .pytest_cache/

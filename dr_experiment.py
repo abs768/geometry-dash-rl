@@ -13,7 +13,9 @@ Method:
      (scaling jump strength, and separately horizontal speed) and record greedy
      level progress.
 
-Output: results/robustness.csv and results/robustness.png — the robustness
+Output: results/robustness.csv (per-perturbation evaluations),
+results/robustness_bands.csv (the derived >=90% tolerance-band widths and the
+DR-vs-nominal ratio the writeup quotes) and results/robustness.png — the robustness
 curves (mean +/- std over seeds). If DR works, its curve stays high across a
 much wider band of perturbations than the nominal policy's.
 
@@ -172,13 +174,48 @@ def main() -> None:
     fig.savefig(out_png, dpi=130)
     print(f"wrote {out_png}")
 
-    # headline number: width of the band where progress stays >= 0.9
+    # Headline number: width of the band where mean progress stays >= 0.9.
+    # This is the figure the writeup quotes ("~1.7x wider tolerance"), so it is
+    # written to its own CSV rather than only printed — otherwise the claim has
+    # no stored artifact and cannot be checked without re-running the script.
+    THRESHOLD = 0.9
+    widths: dict = {}
     for axis in axes_def:
+        widths[axis] = {}
         for cond in conditions:
             mean = curves[axis][cond].mean(0)
-            ok = factors[mean >= 0.9]
+            ok = factors[mean >= THRESHOLD]
             width = (ok.max() - ok.min()) * 100 if len(ok) else 0.0
-            print(f"  {axis:<6} {cond:<8}: >=90% progress over a {width:.0f}%-wide band")
+            widths[axis][cond] = width
+            # One decimal, not zero: rounding 12.5 to "12" here is what put a
+            # slightly wrong band width into the writeup.
+            print(f"  {axis:<6} {cond:<8}: >=90% progress over a {width:.1f}%-wide band")
+
+    bands_path = Path("results/robustness_bands.csv")
+    with open(bands_path, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=[
+            "axis", "threshold", "nominal_width_pct", "dr_width_pct", "improvement_x",
+            "seeds", "train_randomize", "eval_grid", "eval_points", "level",
+        ])
+        w.writeheader()
+        for axis in axes_def:
+            nom = widths[axis]["nominal"]
+            dr = widths[axis]["dr"]
+            w.writerow({
+                "axis": axis,
+                "threshold": THRESHOLD,
+                "nominal_width_pct": round(nom, 1),
+                "dr_width_pct": round(dr, 1),
+                # Undefined rather than infinite if the point-estimate policy
+                # never holds the threshold anywhere.
+                "improvement_x": round(dr / nom, 2) if nom else "",
+                "seeds": len(args.seeds),
+                "train_randomize": args.randomize,
+                "eval_grid": args.grid,
+                "eval_points": args.points,
+                "level": args.level,
+            })
+    print(f"wrote {bands_path}")
 
 
 if __name__ == "__main__":

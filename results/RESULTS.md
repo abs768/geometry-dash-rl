@@ -105,13 +105,16 @@ python dr_experiment.py --seeds 0 1 2 3 4 --level stereo_madness_open
 
 | Perturbation axis | Point estimate (no DR) | Domain randomization | Improvement |
 |-------------------|:----------------------:|:--------------------:|:-----------:|
-| Jump strength     | ≥90% over a **12%**-wide band | ≥90% over a **20%**-wide band | **1.7×** |
-| Horizontal speed  | ≥90% over a **15%**-wide band | ≥90% over a **25%**-wide band | **1.7×** |
+| Jump strength     | ≥90% over a **12.5%**-wide band | ≥90% over a **20%**-wide band | **1.60×** |
+| Horizontal speed  | ≥90% over a **15%**-wide band | ≥90% over a **25%**-wide band | **1.67×** |
+
+Stored in [`robustness_bands.csv`](robustness_bands.csv), derived from
+`robustness.csv` by `dr_experiment.py`.
 
 **Finding.** Domain randomization widens the tolerance band (progress ≥ 90%) by
-~1.7× on both axes and degrades gracefully where the point-estimate policy falls
-off a cliff — a direct, quantified demonstration that DR mitigates the
-sim-to-real gap. It is not a cure-all: beyond ±15% both policies fail at a
+**1.60× on jump strength and 1.67× on horizontal speed**, and degrades gracefully
+where the point-estimate policy falls off a cliff — a direct, quantified
+demonstration that DR mitigates the sim-to-real gap. It is not a cure-all: beyond ±15% both policies fail at a
 timing-critical obstacle, which is the honest ceiling of observation-only
 transfer without further calibration.
 

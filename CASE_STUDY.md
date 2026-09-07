@@ -90,8 +90,8 @@ sim had been undershooting the real jump apex by ~8% — a concrete, measurable
 model error. Then I applied the standard defense against the residual gap,
 **domain randomization**: training DQN across ±18%-per-episode jitter of the
 physics and measuring robustness on held-out perturbations. DR widened the
-policy's tolerance to physics error by **~1.7×** on both jump strength and speed
-(`results/robustness.png`), turning "the sim is approximate" from a caveat into
+policy's tolerance to physics error by **1.60×** on jump strength and **1.67×**
+on speed (`results/robustness_bands.csv`), turning "the sim is approximate" from a caveat into
 a measured, mitigated quantity.
 
 ### 3. Completing the full level — learning from demonstration
@@ -121,7 +121,7 @@ credible part:
   trajectories is future work); robot/spider are first-pass.
 - Sim-to-real transfer dies at ~11% for the *un-hardened* policy. I've since
   calibrated the cube jump (the old constants undershot the real apex by ~8%)
-  and added domain randomization (~1.7× wider physics tolerance, measured in
+  and added domain randomization (1.6-1.67× wider physics tolerance, measured in
   sim), but I have not yet re-run the *on-real* transfer with the hardened
   policy — so ~11% is the baseline, not the current ceiling.
 
