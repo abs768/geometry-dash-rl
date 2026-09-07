@@ -28,12 +28,13 @@ real game. That reframes the project around the interesting hard part —
 
 ```
 Fast headless sim  ──►  RL agents (DQN / PPO / GA)  ──►  Geode C++ mod  ──►  retail game
-   ~4,000× real-time        controlled comparison         binary socket bridge
+   ~2,500× real-time        controlled comparison         binary socket bridge
 ```
 
 - **Headless physics simulator** (`gdrl/sim`) — cube + all six other gamemodes
   (ship, ball, UFO, wave, robot, spider), slopes, gravity/speed portals.
-  Measured **~244,000 steps/sec (~4,000× real time)** on one CPU core.
+  Measured **147k–163k steps/sec (~2,500× real time)** on one CPU core —
+  reproduce with `python bench_sim.py`, output in `results/sim_speed.md`.
 - **Gymnasium environment** with a structured observation (player kinematics +
   a look-ahead occupancy grid of upcoming geometry) — far more sample-efficient
   than raw pixels.

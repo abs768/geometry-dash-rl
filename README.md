@@ -29,7 +29,8 @@ Geometry Dash 2.2.*
 Prior work ([geometry-dash-ai](https://github.com/ThePickleGawd/geometry-dash-ai))
 trains RL agents **inside the running game**, capping learning at real time
 (60 fps). This project decouples training from the game: a **headless simulator**
-runs the physics at **>2,000× real time** (~150k–240k steps/sec on one CPU core),
+runs the physics at **~2,500× real time** (measured 147k–163k steps/sec on one
+CPU core — [`results/sim_speed.md`](results/sim_speed.md)),
 so agents train in seconds, and the retail game — reached through a
 [Geode](https://geode-sdk.org) mod — is the **evaluation target**, not the
 training loop. Agents observe **structured state** (player kinematics + a
@@ -90,7 +91,7 @@ methodology: [`results/RESULTS.md`](results/RESULTS.md). Reproduce with
 
 ```
 Headless sim ──► RL agents (DQN/PPO/GA) ──► Python bridge ──► Geode C++ mod ──► retail game
- >2,000× RT         controlled comparison      binary socket      hooks + input inject
+ ~2,500× RT         controlled comparison      binary socket      hooks + input inject
 ```
 
 - **`gdrl/sim/`** — deterministic physics for all seven gamemodes, slopes,

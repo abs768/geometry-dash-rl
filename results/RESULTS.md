@@ -10,6 +10,12 @@ python sweep.py --seeds 0 1 2 3 4 --levels spikes_easy blocks_and_spikes
 python evaluate.py && python plot.py
 ```
 
+> **Provenance.** `summary.csv` was regenerated on 2026-09-07 by running
+> `evaluate.py` over the existing 5-seed checkpoints in `runs/`; those checkpoints
+> were trained before the cube-jump calibration and are evaluated here under the
+> current (calibrated) physics, so the returns differ slightly from the values a
+> fresh retrain would produce.
+
 ![comparison](comparison.png)
 
 ## Final greedy performance (% of level completed, 5 seeds)
@@ -46,6 +52,8 @@ default settings.
 
 ![PPO entropy ablation](ppo_ablation.png)
 
+Per-seed greedy results for the default-entropy runs are in [`ppo_ablation.csv`](ppo_ablation.csv) (regenerate with `python eval_ablation.py`): 4 of 5 seeds stall at 21.64%, seed 0 solves.
+
 Reproduce the ablation:
 
 ```bash
@@ -69,8 +77,11 @@ algorithm families, no seed statistics, and training capped at real time. Here,
 identical conditions across three algorithm families and five seeds surface a
 concrete, reproducible finding — PPO's default-exploration local-optimum trap on
 precision timing, and the exact entropy change that escapes it — that a
-single-algorithm project cannot show. All 30 sweep runs plus the ablation
-finished in about an hour on one CPU core thanks to the headless sim.
+single-algorithm project cannot show. The headless sim is what makes 30 runs
+practical at all — but a full retrain is hours, not minutes, on one core: DQN's
+400k-step runs measured ~5.3 and ~5.5 minutes each on an Apple Silicon Mac, and
+PPO's budget is 3M steps per run, 7.5x that. Evaluating existing checkpoints
+(`evaluate.py`) takes seconds; retraining the sweep does not.
 
 ## Sim-to-real robustness: domain randomization
 
